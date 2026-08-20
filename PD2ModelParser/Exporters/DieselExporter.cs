@@ -100,10 +100,12 @@ namespace PD2ModelParser.Exporters
                 using (BinaryWriter bw = new BinaryWriter(fs))
                 {
 
-                    bw.Write(-1); //the - (yyyy)
-                    bw.Write((UInt32)100); //Filesize (GO BACK AT END AND CHANGE!!!)
+                    bw.Write(0x42444F44u); // DODB
+                    bw.Write(1u);
+                    bw.Write((UInt32)0);   // Filesize placeholder
+
                     int sectionCount = data.sections.Count;
-                    bw.Write(sectionCount); //Sections count
+                    bw.Write(sectionCount);
 
                     foreach (var sec in sections_to_write)
                     {
@@ -118,8 +120,10 @@ namespace PD2ModelParser.Exporters
                     if (data.leftover_data != null)
                         bw.Write(data.leftover_data);
 
-                    fs.Position = 4;
-                    bw.Write((UInt32)fs.Length);
+                    long finalLength = fs.Length;
+                    
+                    fs.Position = 8;
+                    bw.Write((UInt32)finalLength);
 
                 }
             }

@@ -502,14 +502,19 @@ namespace PD2ModelParser.Importers
                 }
 
                 AddToGeom(ref geom.verts, 3, DM.GeometryChannelTypes.POSITION, md.verts);
-                AddToGeom(ref geom.normals, 3, DM.GeometryChannelTypes.NORMAL0, md.normals);
-                AddToGeom(ref geom.binormals, 3, DM.GeometryChannelTypes.BINORMAL0, md.binormals);
-                AddToGeom(ref geom.tangents, 3, DM.GeometryChannelTypes.TANGENT0, md.tangents);
+
+                AddToGeom(ref geom.normals, 8, DM.GeometryChannelTypes.NORMAL0, md.normals);
+                AddToGeom(ref geom.binormals, 8, DM.GeometryChannelTypes.BINORMAL0, md.binormals);
+                AddToGeom(ref geom.tangents, 8, DM.GeometryChannelTypes.TANGENT0, md.tangents);
+
                 AddToGeom(ref geom.vertex_colors, 5, DM.GeometryChannelTypes.COLOR0, md.vertex_colors);
-                for(var i = 0; i < md.uvs.Length; i++)
+
+                for (var i = 0; i < md.uvs.Length; i++)
                 {
-                    var ct = (DM.GeometryChannelTypes)((int)DM.GeometryChannelTypes.TEXCOORD0 + i);
-                    AddToGeom(ref geom.UVs[i], 2, ct, md.uvs[i]);
+                    var ct = (DM.GeometryChannelTypes)
+                        ((int)DM.GeometryChannelTypes.TEXCOORD0 + i);
+
+                    AddToGeom(ref geom.UVs[i], 9, ct, md.uvs[i]);
                 }
                 AddToGeom(ref geom.weights, 3, DM.GeometryChannelTypes.BLENDWEIGHT0, md.weights);
                 AddToGeom(ref geom.weight_groups, 7, DM.GeometryChannelTypes.BLENDINDICES0, md.weightGroups);

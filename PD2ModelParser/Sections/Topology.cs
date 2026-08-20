@@ -47,7 +47,17 @@ namespace PD2ModelParser.Sections
     [ModelFileSection(Tags.topology_tag)]
     class Topology : AbstractSection, ISection, IHashNamed
     {
-        public UInt32 unknown1 { get; set; }
+        public enum PrimitiveType : uint
+        {
+            PointList = 0,
+            LineList = 1,
+            LineStrip = 2,
+            TriangleList = 3,
+            TriangleStrip = 4,
+            TriangleFan = 5
+        }
+
+        public PrimitiveType primitive_type { get; set; }
         public List<Face> facelist = new List<Face>();
         public UInt32 count2;
         public byte[] items2;
@@ -58,7 +68,7 @@ namespace PD2ModelParser.Sections
         public Topology Clone(string newName)
         {
             var dst = new Topology(newName);
-            dst.unknown1 = this.unknown1;
+            dst.primitive_type = this.primitive_type;
             dst.facelist.Capacity = this.facelist.Count;
             dst.facelist.AddRange(this.facelist.Select(f => new Face(f.a, f.b, f.c )));
             dst.count2 = this.count2;
@@ -68,7 +78,7 @@ namespace PD2ModelParser.Sections
 
         public Topology(string objectName)
         {
-            this.unknown1 = 0;
+            this.primitive_type = PrimitiveType.TriangleList;
 
             this.count2 = 0;
             this.items2 = new byte[0];
@@ -83,7 +93,7 @@ namespace PD2ModelParser.Sections
         public Topology(BinaryReader instream, SectionHeader section)
         {
             SectionId = section.id;
-            this.unknown1 = instream.ReadUInt32();
+            this.primitive_type = (PrimitiveType)instream.ReadUInt32();
             uint count1 = instream.ReadUInt32();
             for (int x = 0; x < count1 / 3; x++)
             {
@@ -104,7 +114,7 @@ namespace PD2ModelParser.Sections
 
         public override void StreamWriteData(BinaryWriter outstream)
         {
-            outstream.Write(this.unknown1);
+            outstream.Write((uint)this.primitive_type);
             outstream.Write(facelist.Count * 3);
             foreach (Face face in facelist)
             {
@@ -124,7 +134,7 @@ namespace PD2ModelParser.Sections
         public override string ToString()
         {
             return base.ToString() +
-                   $" unknown1: {unknown1} facelist: {facelist.Count} count2: {count2}" +
+                   $" primitive_type: {primitive_type} facelist: {facelist.Count} count2: {count2}" +
                    $" items2: {items2.Length} HashName: {HashName}" +
                    (this.remaining_data != null ? " REMAINING DATA! " + this.remaining_data.Length + " bytes" : "");
         }

@@ -87,7 +87,7 @@ namespace PD2ModelParser.Sections
         /// Byte sizes for various types of geometry buffer. Official data is consistent regarding
         /// which one goes with which <see cref="GeometryChannelTypes"/>.
         /// </summary>
-        public static readonly IReadOnlyList<uint> ItemSizes = new List<uint> { 0, 4, 8, 12, 16, 4, 4, 8, 12 };
+       public static readonly IReadOnlyList<uint> ItemSizes = new List<uint> { 0, 4, 8, 12, 16, 4, 4, 8, 4, 4 };
 
         /// <summary>
         /// Index into <see cref="ItemSizes"/>
@@ -105,9 +105,14 @@ namespace PD2ModelParser.Sections
             ItemType = type;
         }
 
-        public uint ItemSizeBytes { get { return ItemSizes[(int)ItemSize]; } }
+        public uint ItemSizeBytes { 
+            get 
+            { 
+                //Console.WriteLine(ItemSize.ToString());
+                return ItemSizes[(int)ItemSize]; 
+            } 
+        }
     }
-
     // Extracted from dsl::wd3d::D3DShaderProgram::compile
     // These are the actual names of each channel, as passed to the shader
     public enum GeometryChannelTypes
@@ -129,17 +134,19 @@ namespace PD2ModelParser.Sections
         TEXCOORD5 = 12,
         TEXCOORD6 = 13,
         TEXCOORD7 = 14,
-        BLENDINDICES = 15,
-        BLENDINDICES0 = 15,
-        BLENDINDICES1 = 16,
-        BLENDWEIGHT = 17,
-        BLENDWEIGHT0 = 17,
-        BLENDWEIGHT1 = 18,
-        POINTSIZE = 19,
-        BINORMAL = 20,
-        BINORMAL0 = 20,
-        TANGENT = 21,
-        TANGENT0 = 21,
+        TEXCOORD8 = 15,
+        TEXCOORD9 = 16,
+        BLENDINDICES = 17,
+        BLENDINDICES0 = 17,
+        BLENDINDICES1 = 18,
+        BLENDWEIGHT = 19,
+        BLENDWEIGHT0 = 19,
+        BLENDWEIGHT1 = 20,
+        POINTSIZE = 21,
+        BINORMAL = 22,
+        BINORMAL0 = 22,
+        TANGENT = 23,
+        TANGENT0 = 23,
     }
 
     [ModelFileSection(Tags.geometry_tag)]
@@ -167,6 +174,56 @@ namespace PD2ModelParser.Sections
         public HashName HashName { get; set; }
 
         public byte[] remaining_data = null;
+
+        private static float UnpackSignedByte(byte value)
+        {
+            return (value / 255.0f) * 2.0f - 1.0f;
+        }
+
+        private static byte PackSignedByte(float value)
+        {
+            value = Math.Clamp(value, -1.0f, 1.0f);
+
+            return (byte)((value + 1.0f) * 127.5f);
+        }
+
+        private static Vector3 ReadPackedVector3(BinaryReader instream)
+        {
+            byte z = instream.ReadByte();
+            byte y = instream.ReadByte();
+            byte x = instream.ReadByte();
+
+            instream.ReadByte(); // W / unused byte
+
+            return new Vector3(
+                UnpackSignedByte(x),
+                UnpackSignedByte(y),
+                UnpackSignedByte(z));
+        }
+
+        private static void WritePackedVector3(
+            BinaryWriter outstream,
+            Vector3 value)
+        {
+            outstream.Write(PackSignedByte(value.Z));
+            outstream.Write(PackSignedByte(value.Y));
+            outstream.Write(PackSignedByte(value.X));
+            outstream.Write((byte)0);
+        }
+
+        private static float ReadHalf(BinaryReader instream)
+        {
+            ushort raw = instream.ReadUInt16();
+
+            return (float)BitConverter.UInt16BitsToHalf(raw);
+        }
+
+        private static void WriteHalf(BinaryWriter outstream, float value)
+        {
+            ushort raw = BitConverter.HalfToUInt16Bits((Half)value);
+
+            outstream.Write(raw);
+        }
 
         public Geometry Clone()
         {
@@ -206,12 +263,16 @@ namespace PD2ModelParser.Sections
         {
             this.vert_count = (uint) newobject.verts.Count;
 
-            this.Headers.Add(new GeometryHeader(3, GeometryChannelTypes.POSITION)); // vert
-            this.Headers.Add(new GeometryHeader(2, GeometryChannelTypes.TEXCOORD0)); // uv
-            this.Headers.Add(new GeometryHeader(3, GeometryChannelTypes.NORMAL0)); // norm
-            this.Headers.Add(new GeometryHeader(3, GeometryChannelTypes.BINORMAL0)); // unk20
-            this.Headers.Add(new GeometryHeader(3, GeometryChannelTypes.TANGENT0)); // unk21
+            this.Headers.Add(new GeometryHeader(3, GeometryChannelTypes.POSITION));
 
+            this.Headers.Add(new GeometryHeader(9, GeometryChannelTypes.TEXCOORD0));
+
+            this.Headers.Add(new GeometryHeader(8, GeometryChannelTypes.NORMAL0));
+
+            this.Headers.Add(new GeometryHeader(8, GeometryChannelTypes.BINORMAL0));
+
+            this.Headers.Add(new GeometryHeader(8, GeometryChannelTypes.TANGENT0));
+            
             this.verts = newobject.verts;
             this.UVs[0] = newobject.uv;
             this.normals = newobject.normals;
@@ -240,7 +301,7 @@ namespace PD2ModelParser.Sections
 
             foreach (GeometryHeader head in this.Headers)
             {
-                //Console.WriteLine("Header type: " + head.item_type + " Size: " + head.item_size);
+                //Console.WriteLine("Header type: " + head.ItemType + " Size: " + head.ItemSize);
                 if (head.ItemType == GeometryChannelTypes.POSITION)
                 {
                     verts.Capacity = (int)vert_count + 1;
@@ -257,13 +318,10 @@ namespace PD2ModelParser.Sections
                 else if (head.ItemType == GeometryChannelTypes.NORMAL)
                 {
                     normals.Capacity = (int)vert_count + 1;
+
                     for (int x = 0; x < this.vert_count; x++)
                     {
-                        Vector3 norm = new Vector3();
-                        norm.X = instream.ReadSingle();
-                        norm.Y = instream.ReadSingle();
-                        norm.Z = instream.ReadSingle();
-                        this.normals.Add(norm);
+                        this.normals.Add(ReadPackedVector3(instream));
                     }
                 }
                 else if (head.ItemType == GeometryChannelTypes.COLOR0)
@@ -279,25 +337,19 @@ namespace PD2ModelParser.Sections
                 else if (head.ItemType == GeometryChannelTypes.BINORMAL0)
                 {
                     binormals.Capacity = (int)vert_count + 1;
+
                     for (int x = 0; x < this.vert_count; x++)
                     {
-                        Vector3 binormal_entry = new Vector3();
-                        binormal_entry.X = instream.ReadSingle();
-                        binormal_entry.Y = instream.ReadSingle();
-                        binormal_entry.Z = instream.ReadSingle();
-                        this.binormals.Add(binormal_entry);
+                        this.binormals.Add(ReadPackedVector3(instream));
                     }
                 }
                 else if (head.ItemType == GeometryChannelTypes.TANGENT0)
                 {
                     tangents.Capacity = (int)vert_count + 1;
+
                     for (int x = 0; x < this.vert_count; x++)
                     {
-                        Vector3 tangent_entry = new Vector3();
-                        tangent_entry.X = instream.ReadSingle();
-                        tangent_entry.Y = instream.ReadSingle();
-                        tangent_entry.Z = instream.ReadSingle();
-                        this.tangents.Add(tangent_entry);
+                        this.tangents.Add(ReadPackedVector3(instream));
                     }
                 }
 
@@ -341,14 +393,16 @@ namespace PD2ModelParser.Sections
                     }
                 }
                 else if (head.ItemType >= GeometryChannelTypes.TEXCOORD0 &&
-                         head.ItemType <= GeometryChannelTypes.TEXCOORD7)
+                        head.ItemType <= GeometryChannelTypes.TEXCOORD9)
                 {
                     int idx = head.ItemType - GeometryChannelTypes.TEXCOORD0;
+
                     for (int x = 0; x < vert_count; x++)
                     {
-                        // Previously, the Y was only inverted on the TEXCOORD0 channel, and
-                        // not on the TEXCOORD1 channel. I assume that was incorrect, TODO check?
-                        Vector2 uv = new Vector2 {X = instream.ReadSingle(), Y = -instream.ReadSingle()};
+                        Vector2 uv = new Vector2(
+                            ReadHalf(instream),
+                            -ReadHalf(instream));
+
                         UVs[idx].Add(uv);
                     }
                 }
@@ -418,9 +472,9 @@ namespace PD2ModelParser.Sections
                     for (int x = 0; x < this.vert_count; x++)
                     {
                         Vector3 norm = normals[norm_pos];
-                        outstream.Write(norm.X);
-                        outstream.Write(norm.Y);
-                        outstream.Write(norm.Z);
+
+                        WritePackedVector3(outstream, norm);
+
                         norm_pos++;
                     }
                 }
@@ -436,40 +490,24 @@ namespace PD2ModelParser.Sections
                 {
                     for (int x = 0; x < this.vert_count; x++)
                     {
-                        if (this.binormals.Count != this.vert_count)
-                        {
-                            outstream.Write(0.0f);
-                            outstream.Write(0.0f);
-                            outstream.Write(0.0f);
-                        }
-                        else
-                        {
-                            Vector3 binormal_entry = binormals[x];
-                            outstream.Write(binormal_entry.X);
-                            outstream.Write(binormal_entry.Y);
-                            outstream.Write(binormal_entry.Z);
-                            binormals_pos++;
-                        }
+                        Vector3 binormal =
+                            this.binormals.Count == this.vert_count
+                                ? binormals[x]
+                                : Vector3.Zero;
+
+                        WritePackedVector3(outstream, binormal);
                     }
                 }
                 else if (head.ItemType == GeometryChannelTypes.TANGENT)
                 {
                     for (int x = 0; x < this.vert_count; x++)
                     {
-                        if (this.tangents.Count != this.vert_count)
-                        {
-                            outstream.Write(0.0f);
-                            outstream.Write(0.0f);
-                            outstream.Write(0.0f);
-                        }
-                        else
-                        {
-                            Vector3 tangent_entry = tangents[x];
-                            outstream.Write(tangent_entry.X);
-                            outstream.Write(tangent_entry.Y);
-                            outstream.Write(tangent_entry.Z);
-                            tangents_pos++;
-                        }
+                        Vector3 tangent =
+                            this.tangents.Count == this.vert_count
+                                ? tangents[x]
+                                : Vector3.Zero;
+
+                        WritePackedVector3(outstream, tangent);
                     }
                 }
                 else if (head.ItemType == GeometryChannelTypes.BLENDINDICES)
@@ -513,14 +551,16 @@ namespace PD2ModelParser.Sections
                     }
                 }
                 else if (head.ItemType >= GeometryChannelTypes.TEXCOORD0 &&
-                         head.ItemType <= GeometryChannelTypes.TEXCOORD7)
+                        head.ItemType <= GeometryChannelTypes.TEXCOORD9)
                 {
                     int idx = head.ItemType - GeometryChannelTypes.TEXCOORD0;
+
                     for (int x = 0; x < this.vert_count; x++)
                     {
                         Vector2 uv = UVs[idx][x];
-                        outstream.Write(uv.X);
-                        outstream.Write(-uv.Y);
+
+                        WriteHalf(outstream, uv.X);
+                        WriteHalf(outstream, -uv.Y);
                     }
                 }
                 else

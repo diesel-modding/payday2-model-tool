@@ -57,17 +57,25 @@ namespace PD2ModelParser
         /// <returns>The list of section headers</returns>
         public static List<SectionHeader> ReadHeaders(BinaryReader br)
         {
-            int random = br.ReadInt32();
-            int filesize = br.ReadInt32();
-            int sectionCount;
-            if (random == -1)
-            {
-                sectionCount = br.ReadInt32();
-            }
-            else
-                sectionCount = random;
+            const uint Diesel3Magic = 0x42444F44; // "DODB"
 
-            Log.Default.Debug("Size: {0} bytes, Sections: {1},{2}", filesize, sectionCount, br.BaseStream.Position);
+            uint magic = br.ReadUInt32();
+
+            if (magic != Diesel3Magic)
+            {
+                throw new InvalidDataException(
+                    $"Invalid Diesel 3.0 model header: expected DODB, got 0x{magic:X8}");
+            }
+
+            uint version = br.ReadUInt32();
+            uint filesize = br.ReadUInt32();
+            uint sectionCount = br.ReadUInt32();
+
+            Log.Default.Debug(
+                "Version: {0}, Size: {1} bytes, Sections: {2}",
+                version,
+                filesize,
+                sectionCount);
 
             List<SectionHeader> sections = new List<SectionHeader>();
 
@@ -75,9 +83,10 @@ namespace PD2ModelParser
             {
                 SectionHeader sectionHead = new SectionHeader(br);
                 sections.Add(sectionHead);
-                Log.Default.Debug("Section: {0}", sectionHead);
 
+                Log.Default.Debug("Section: {0}", sectionHead);
                 Log.Default.Debug("Next offset: {0}", sectionHead.End);
+
                 br.BaseStream.Position = sectionHead.End;
             }
 

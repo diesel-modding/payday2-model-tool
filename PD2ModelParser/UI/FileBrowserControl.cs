@@ -37,6 +37,7 @@ namespace PD2ModelParser.UI {
 
         private bool _saveMode;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool SaveMode
         {
             get
@@ -52,10 +53,13 @@ namespace PD2ModelParser.UI {
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool MultiFile { get; set; }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string Filter { get; set; }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string Selected
         {
             get
