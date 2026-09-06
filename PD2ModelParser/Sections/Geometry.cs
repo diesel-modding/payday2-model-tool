@@ -211,6 +211,49 @@ namespace PD2ModelParser.Sections
             outstream.Write((byte)0);
         }
 
+        private static Vector3 ReadFloatVector3(BinaryReader instream)
+        {
+            return new Vector3(
+                instream.ReadSingle(),
+                instream.ReadSingle(),
+                instream.ReadSingle()
+            );
+        }
+
+        private static void WriteFloatVector3(BinaryWriter outstream, Vector3 value)
+        {
+            outstream.Write(value.X);
+            outstream.Write(value.Y);
+            outstream.Write(value.Z);
+        }
+
+        private static Vector3 ReadVector3ByType(BinaryReader instream, uint type)
+        {
+            if (type == 3)
+                return ReadFloatVector3(instream);
+
+            if (type == 8)
+                return ReadPackedVector3(instream);
+
+            throw new Exception($"Unsupported Vector3 geometry type {type}");
+        }
+
+        private static void WriteVector3ByType(BinaryWriter outstream, Vector3 value, uint type)
+        {
+            if (type == 3)
+            {
+                WriteFloatVector3(outstream, value);
+                return;
+            }
+
+            if (type == 8)
+            {
+                WritePackedVector3(outstream, value);
+                return;
+            }
+
+            throw new Exception($"Unsupported Vector3 geometry type {type}");
+        }
         private static float ReadHalf(BinaryReader instream)
         {
             ushort raw = instream.ReadUInt16();
@@ -321,7 +364,7 @@ namespace PD2ModelParser.Sections
 
                     for (int x = 0; x < this.vert_count; x++)
                     {
-                        this.normals.Add(ReadPackedVector3(instream));
+                        this.normals.Add(ReadVector3ByType(instream, head.ItemSize));
                     }
                 }
                 else if (head.ItemType == GeometryChannelTypes.COLOR0)
@@ -340,7 +383,7 @@ namespace PD2ModelParser.Sections
 
                     for (int x = 0; x < this.vert_count; x++)
                     {
-                        this.binormals.Add(ReadPackedVector3(instream));
+                        this.binormals.Add(ReadVector3ByType(instream, head.ItemSize));
                     }
                 }
                 else if (head.ItemType == GeometryChannelTypes.TANGENT0)
@@ -349,7 +392,7 @@ namespace PD2ModelParser.Sections
 
                     for (int x = 0; x < this.vert_count; x++)
                     {
-                        this.tangents.Add(ReadPackedVector3(instream));
+                        this.tangents.Add(ReadVector3ByType(instream, head.ItemSize));
                     }
                 }
 
@@ -399,9 +442,24 @@ namespace PD2ModelParser.Sections
 
                     for (int x = 0; x < vert_count; x++)
                     {
-                        Vector2 uv = new Vector2(
-                            ReadHalf(instream),
-                            -ReadHalf(instream));
+                        Vector2 uv;
+
+                        if (head.ItemSize == 2)
+                        {
+                            uv = new Vector2(
+                                instream.ReadSingle(),
+                                -instream.ReadSingle());
+                        }
+                        else if (head.ItemSize == 9)
+                        {
+                            uv = new Vector2(
+                                ReadHalf(instream),
+                                -ReadHalf(instream));
+                        }
+                        else
+                        {
+                            throw new Exception($"Unsupported TEXCOORD type {head.ItemSize}");
+                        }
 
                         UVs[idx].Add(uv);
                     }
@@ -473,7 +531,7 @@ namespace PD2ModelParser.Sections
                     {
                         Vector3 norm = normals[norm_pos];
 
-                        WritePackedVector3(outstream, norm);
+                        WriteVector3ByType(outstream, norm, head.ItemSize);
 
                         norm_pos++;
                     }
@@ -495,7 +553,7 @@ namespace PD2ModelParser.Sections
                                 ? binormals[x]
                                 : Vector3.Zero;
 
-                        WritePackedVector3(outstream, binormal);
+                        WriteVector3ByType(outstream, binormal, head.ItemSize);
                     }
                 }
                 else if (head.ItemType == GeometryChannelTypes.TANGENT)
@@ -507,7 +565,7 @@ namespace PD2ModelParser.Sections
                                 ? tangents[x]
                                 : Vector3.Zero;
 
-                        WritePackedVector3(outstream, tangent);
+                        WriteVector3ByType(outstream, tangent, head.ItemSize);
                     }
                 }
                 else if (head.ItemType == GeometryChannelTypes.BLENDINDICES)
@@ -559,8 +617,20 @@ namespace PD2ModelParser.Sections
                     {
                         Vector2 uv = UVs[idx][x];
 
-                        WriteHalf(outstream, uv.X);
-                        WriteHalf(outstream, -uv.Y);
+                        if (head.ItemSize == 2)
+                        {
+                            outstream.Write(uv.X);
+                            outstream.Write(-uv.Y);
+                        }
+                        else if (head.ItemSize == 9)
+                        {
+                            WriteHalf(outstream, uv.X);
+                            WriteHalf(outstream, -uv.Y);
+                        }
+                        else
+                        {
+                            throw new Exception($"Unsupported TEXCOORD type {head.ItemSize}");
+                        }
                     }
                 }
                 else
