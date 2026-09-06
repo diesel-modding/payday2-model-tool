@@ -337,7 +337,14 @@ namespace PD2ModelParser.Sections
             {
                 GeometryHeader header = new GeometryHeader();
                 header.ItemSize = instream.ReadUInt32();
-                header.ItemType = (GeometryChannelTypes) instream.ReadUInt32();
+                uint itemType = instream.ReadUInt32();
+
+                if (section.legacy && itemType > (uint)GeometryChannelTypes.TEXCOORD7)
+                {
+                    itemType += 2;
+                }
+
+                header.ItemType = (GeometryChannelTypes)itemType;
                 calc_size += header.ItemSizeBytes;
                 this.Headers.Add(header);
             }

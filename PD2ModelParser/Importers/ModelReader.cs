@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -61,27 +60,43 @@ namespace PD2ModelParser
 
             uint magic = br.ReadUInt32();
 
-            if (magic != Diesel3Magic)
+            uint version;
+            uint filesize;
+            uint sectionCount;
+            bool legacy = magic != Diesel3Magic;
+
+            if (magic == Diesel3Magic)
             {
-                throw new InvalidDataException(
-                    $"Invalid Diesel 3.0 model header: expected DODB, got 0x{magic:X8}");
+                version = br.ReadUInt32();
+                filesize = br.ReadUInt32();
+                sectionCount = br.ReadUInt32();
+
+                Log.Default.Debug(
+                    "Diesel 3 model - Version: {0}, Size: {1} bytes, Sections: {2}",
+                    version,
+                    filesize,
+                    sectionCount);
             }
+            else
+            {
+                filesize = br.ReadUInt32();
 
-            uint version = br.ReadUInt32();
-            uint filesize = br.ReadUInt32();
-            uint sectionCount = br.ReadUInt32();
+                if (magic == 0xFFFFFFFF)
+                    sectionCount = br.ReadUInt32();
+                else
+                    sectionCount = magic;
 
-            Log.Default.Debug(
-                "Version: {0}, Size: {1} bytes, Sections: {2}",
-                version,
-                filesize,
-                sectionCount);
+                Log.Default.Debug(
+                    "Legacy model - Size: {0} bytes, Sections: {1}",
+                    filesize,
+                    sectionCount);
+            }
 
             List<SectionHeader> sections = new List<SectionHeader>();
 
             for (int x = 0; x < sectionCount; x++)
             {
-                SectionHeader sectionHead = new SectionHeader(br);
+                var sectionHead = new SectionHeader(br) { legacy = legacy };
                 sections.Add(sectionHead);
 
                 Log.Default.Debug("Section: {0}", sectionHead);

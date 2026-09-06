@@ -9,6 +9,7 @@ namespace PD2ModelParser
         public UInt32 id;
         public UInt32 size;
         public long offset;
+        public bool legacy;
 
         /// <summary>
         /// Get the starting position for the contents of this section
