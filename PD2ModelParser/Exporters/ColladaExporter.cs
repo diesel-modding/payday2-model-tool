@@ -201,7 +201,7 @@ namespace PD2ModelParser
 
                         node parent = bone_root_node;
 
-                        if (bones.ContainsKey(obj))
+                        if (obj.Parent != null && bones.ContainsKey(obj.Parent))
                         {
                             parent = bones[obj.Parent];
                         }
