@@ -38,7 +38,7 @@ namespace PD2ModelParser.Tests
             {
                 float diff = Math.Abs(expect.Index(i) - test.Index(i));
                 if (diff > err)
-                    Assert.Fail("Matrix value mismatch: {0} vs {1}", expect.Index(i), test.Index(i));
+                    Assert.Fail($"Matrix value mismatch: {expect.Index(i)} vs {test.Index(i)}");
             }
         }
 

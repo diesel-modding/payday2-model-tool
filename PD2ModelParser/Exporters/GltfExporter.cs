@@ -335,10 +335,10 @@ namespace PD2ModelParser.Exporters
 
             for (var i = 0; i < geometry.UVs.Length; i++)
             {
-                var uvs = geometry.UVs[i];
-                if(uvs.Count > 0)
+                var uv = geometry.UVs[i];
+                if(uv.Count > 0)
                 {
-                    var a_uv = MakeVertexAttributeAccessor($"vuv_{i}", uvs, 12, GLTF.DimensionType.VEC2, FixupUV, ma => ma.AsVector2Array());
+                    var a_uv = MakeVertexAttributeAccessor($"vuv_{i}", uv, 12, GLTF.DimensionType.VEC2, FixupUV, ma => ma.AsVector2Array());
                     result.Add(($"TEXCOORD_{i}", a_uv));
                 }
             }
