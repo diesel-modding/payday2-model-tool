@@ -167,7 +167,7 @@ namespace PD2ModelParser.Modelscript
                     if (defaultRootObject == null)
                     {
                         state.Log.Status("No root point. Creating 'root_point' at origin");
-                        var root = new S.Object3D("root_point", null);
+                        var root = new S.Object3D("1439828811075370459", null);
                         state.Data.AddSection(root);
                         defaultRootObject = root;
                     }
