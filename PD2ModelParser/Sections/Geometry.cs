@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Security.RightsManagement;
 
 namespace PD2ModelParser.Sections
 {
@@ -156,17 +157,16 @@ namespace PD2ModelParser.Sections
         public uint vert_count;
 
         public List<Vector2>[] UVs = new List<Vector2>[8];
-
+        public List<Vector2> uv0 => UVs[0];
+        public List<Vector2> uv1 => UVs[1];
         public List<GeometryHeader> Headers { get; private set; } = new List<GeometryHeader>();
         public List<Vector3> verts = new List<Vector3>();
-        public List<Vector2> uvs => UVs[0];
-        public List<Vector2> pattern_uvs => UVs[1];
         public List<Vector3> normals = new List<Vector3>();
         public List<GeometryColor> vertex_colors = new List<GeometryColor>();
         public List<GeometryWeightGroups> weight_groups = new List<GeometryWeightGroups>(); //4 - Weight Groups
         public List<Vector3> weights = new List<Vector3>(); //3 - Weights
-        public List<Vector3> binormals = new List<Vector3>(); //3 - Tangent/Binormal
-        public List<Vector3> tangents = new List<Vector3>(); //3 - Tangent/Binormal
+        public List<Vector3> binormals = new List<Vector3>(); //3 - Binormals
+        public List<Vector3> tangents = new List<Vector3>(); //3 - Tangent
 
         // Unknown items from this section. Includes colors and a few other items.
         public List<byte[]> unknown_item_data = new List<byte[]>();
@@ -273,18 +273,16 @@ namespace PD2ModelParser.Sections
             var src = this;
             var dst = new Geometry();
             dst.vert_count = this.vert_count;
-            for (int i = 0; i < UVs.Length; i++)
-            {
-                src.UVs[i].CopyTo(dst.UVs[i]);
-            }
             dst.Headers.AddRange(src.Headers.Select(i => new GeometryHeader(i.ItemSize, i.ItemType)));
-            src.verts.CopyTo(dst.verts);
-            src.normals.CopyTo(dst.normals);
-            src.vertex_colors.CopyTo(dst.vertex_colors);
-            src.weight_groups.CopyTo(dst.weight_groups);
-            src.weights.CopyTo(dst.weights);
-            src.binormals.CopyTo(dst.binormals);
-            src.tangents.CopyTo(dst.tangents);
+            dst.verts.AddRange(src.verts);
+            dst.uv0.AddRange(src.uv0);
+            dst.uv1.AddRange(src.uv1);
+            dst.normals.AddRange(src.normals);
+            dst.vertex_colors.AddRange(src.vertex_colors);
+            dst.weight_groups.AddRange(src.weight_groups);
+            dst.weights.AddRange(src.weights);
+            dst.binormals.AddRange(src.binormals);
+            dst.tangents.AddRange(src.tangents);
             foreach(var ud in src.unknown_item_data)
             {
                 dst.unknown_item_data.Add((byte[])(ud.Clone()));
@@ -705,8 +703,8 @@ namespace PD2ModelParser.Sections
                    " Count: " + this.vert_count +
                    " Headers: " + this.Headers.Count +
                    " Verts: " + this.verts.Count +
-                   " UVs: " + this.uvs.Count +
-                   " Pattern UVs: " + this.pattern_uvs.Count +
+                   " UVs: " + this.uv0.Count +
+                   " Pattern UVs: " + this.uv1.Count +
                    " Normals: " + this.normals.Count +
                    " weight_groups: " + this.weight_groups.Count +
                    " weights: " + this.weights.Count +

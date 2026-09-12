@@ -97,10 +97,10 @@ namespace PD2ModelParser.Importers
                                 obj = new obj_data();
                             }
 
-                            String[] uvs = line.Split(' ');
+                            String[] uv0 = line.Split(' ');
                             Vector2 uv = new Vector2();
-                            uv.X = Convert.ToSingle(uvs[1], CultureInfo.InvariantCulture);
-                            uv.Y = Convert.ToSingle(uvs[2], CultureInfo.InvariantCulture);
+                            uv.X = Convert.ToSingle(uv0[1], CultureInfo.InvariantCulture);
+                            uv.Y = Convert.ToSingle(uv0[2], CultureInfo.InvariantCulture);
 
                             obj.uv.Add(uv);
                         }
@@ -404,7 +404,7 @@ namespace PD2ModelParser.Importers
             topology_section.facelist = new_faces;
         }
 
-        private static void ComputeTangentBasis(ref List<Face> faces, ref List<Vector3> verts, ref Vector2[] uvs, ref Vector3[] normals, ref Vector3[] tangents, ref Vector3[] binormals)
+        private static void ComputeTangentBasis(ref List<Face> faces, ref List<Vector3> verts, ref Vector2[] uv0, ref Vector3[] normals, ref Vector3[] tangents, ref Vector3[] binormals)
         {
             //Taken from various sources online. Search up Normal Vector Tangent calculation.
 
@@ -412,10 +412,10 @@ namespace PD2ModelParser.Importers
 
             foreach (Face f in faces)
             {
-                float u02 = (uvs[f.c].X - uvs[f.a].X);
-                float v02 = (uvs[f.c].Y - uvs[f.a].Y);
-                float u01 = (uvs[f.b].X - uvs[f.a].X);
-                float v01 = (uvs[f.b].Y - uvs[f.a].Y);
+                float u02 = (uv0[f.c].X - uv0[f.a].X);
+                float v02 = (uv0[f.c].Y - uv0[f.a].Y);
+                float u01 = (uv0[f.b].X - uv0[f.a].X);
+                float v01 = (uv0[f.b].Y - uv0[f.a].Y);
                 float dot00 = u02 * u02 + v02 * v02;
                 float dot01 = u02 * u01 + v02 * v01;
                 float dot11 = u01 * u01 + v01 * v01;
@@ -539,10 +539,10 @@ namespace PD2ModelParser.Importers
                                     obj = new obj_data();
                                 }
 
-                                String[] uvs = line.Split(' ');
+                                String[] uv0 = line.Split(' ');
                                 Vector2 uv = new Vector2();
-                                uv.X = Convert.ToSingle(uvs[1], CultureInfo.InvariantCulture);
-                                uv.Y = Convert.ToSingle(uvs[2], CultureInfo.InvariantCulture);
+                                uv.X = Convert.ToSingle(uv0[1], CultureInfo.InvariantCulture);
+                                uv.Y = Convert.ToSingle(uv0[2], CultureInfo.InvariantCulture);
 
                                 obj.uv.Add(uv);
                             }

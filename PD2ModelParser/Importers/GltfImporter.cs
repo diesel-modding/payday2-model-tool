@@ -509,12 +509,12 @@ namespace PD2ModelParser.Importers
 
                 AddToGeom(ref geom.vertex_colors, 5, DM.GeometryChannelTypes.COLOR0, md.vertex_colors);
 
-                for (var i = 0; i < md.uvs.Length; i++)
+                for (var i = 0; i < md.uv0.Length; i++)
                 {
                     var ct = (DM.GeometryChannelTypes)
                         ((int)DM.GeometryChannelTypes.TEXCOORD0 + i);
 
-                    AddToGeom(ref geom.UVs[i], 9, ct, md.uvs[i]);
+                    AddToGeom(ref geom.UVs[i], 9, ct, md.uv0[i]);
                 }
                 AddToGeom(ref geom.weights, 3, DM.GeometryChannelTypes.BLENDWEIGHT0, md.weights);
                 AddToGeom(ref geom.weight_groups, 7, DM.GeometryChannelTypes.BLENDINDICES0, md.weightGroups);
@@ -543,7 +543,7 @@ namespace PD2ModelParser.Importers
             public List<DM.Face> faces = new List<DM.Face>();
             public List<DM.RenderAtom> renderAtoms = new List<DM.RenderAtom>();
             public List<string> materials = new List<string>();
-            public List<Vector2>[] uvs = new List<Vector2>[] {
+            public List<Vector2>[] uv0 = new List<Vector2>[] {
                 new List<Vector2>(),
                 new List<Vector2>(),
                 new List<Vector2>(),
@@ -566,7 +566,7 @@ namespace PD2ModelParser.Importers
                 vtx.binormal.WithValue(v =>this.binormals.Add(v));
                 for (var i = 0; i < 8; i++)
                 {
-                    vtx.uv[i].WithValue(v => this.uvs[i].Add(v));
+                    vtx.uv[i].WithValue(v => this.uv0[i].Add(v));
                 }
                 vtx.weight.WithValue(v => this.weights.Add(v));
                 if(vtx.weightGroups != null) { this.weightGroups.Add(vtx.weightGroups); }
@@ -705,10 +705,10 @@ namespace PD2ModelParser.Importers
                 for (int i = 0; i < 8; i++)
                 {
                     var ii = i; // Closures capture by reference, and i is declared outside the loop body in for.
-                    prim.VertexAccessors.TryGetValue($"TEXCOORD_{ii}", out var uvs);
-                    if (uvs != null && uvs.Count > 0)
+                    prim.VertexAccessors.TryGetValue($"TEXCOORD_{ii}", out var uv0);
+                    if (uv0 != null && uv0.Count > 0)
                     {
-                        var uva = uvs.AsVector2Array();
+                        var uva = uv0.AsVector2Array();
                         result = result.Select((vtx, idx) => { vtx.uv[ii] = new Vector2(uva[idx].X, 1-uva[idx].Y); return vtx; });
                     }
                 }

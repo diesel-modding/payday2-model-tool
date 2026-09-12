@@ -255,7 +255,7 @@ namespace PD2ModelParser
 
             int vertlen = geometry_section.verts.Count;
             int normlen = geometry_section.normals.Count;
-            int uvlen = geometry_section.uvs.Count;
+            int uvlen = geometry_section.uv0.Count;
 
             triangles triangles = new triangles();
 
@@ -348,7 +348,7 @@ namespace PD2ModelParser
                 sources.Add(GenerateSource(NORM_ID, geometry_section.normals));
 
             if (uvlen > 0)
-                sources.Add(GenerateSourceTex(UV_ID, geometry_section.uvs));
+                sources.Add(GenerateSourceTex(UV_ID, geometry_section.uv0));
 
             mesh.source = sources.ToArray();
 
