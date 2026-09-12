@@ -36,17 +36,29 @@ namespace PD2ModelParser
             return TryParseName(System.IO.Path.GetExtension(path), out result);
         }
 
-        class ObjType : FileTypeInfo
+        class ObjType0 : FileTypeInfo
         {
             public override string Extension => "obj";
-            public override string Name => "Object";
+            public override string Name => "Object UV0";
             public override bool CanExport => true;
             public override bool CanImport => true;
             public override void Import(FullModelData data, string path, bool createModels, Func<string, Sections.Object3D> parentFinder, IOptionReceiver options)
                 => NewObjImporter.ImportNewObj(data, path, createModels, parentFinder, options);
-            public override string Export(FullModelData data, string path) => Exporters.ObjWriter.ExportFile(data, path);
+            public override string Export(FullModelData data, string path) => Exporters.ObjWriter.ExportUV0File(data, path);
         }
-        public static readonly FileTypeInfo Obj = new ObjType();
+        public static readonly FileTypeInfo ObjUV0 = new ObjType0();
+
+        class ObjType1 : FileTypeInfo
+        {
+            public override string Extension => "obj";
+            public override string Name => "Object UV1";  
+            public override bool CanExport => true;
+            public override bool CanImport => true;
+            public override void Import(FullModelData data, string path, bool createModels, Func<string, Sections.Object3D> parentFinder, IOptionReceiver options)
+                => NewObjImporter.ImportNewObj(data, path, createModels, parentFinder, options);
+            public override string Export(FullModelData data, string path) => Exporters.ObjWriter.ExportUV1File(data, path);
+        }
+        public static readonly FileTypeInfo ObjUV1 = new ObjType1();
 
         class DaeType : FileTypeInfo
         {
@@ -96,7 +108,8 @@ namespace PD2ModelParser
 
         public static IReadOnlyList<FileTypeInfo> Types { get; } = new List<FileTypeInfo>() {
             FileTypeInfo.Dae,
-            FileTypeInfo.Obj,
+            FileTypeInfo.ObjUV0,
+            FileTypeInfo.ObjUV1,
             FileTypeInfo.Gltf,
             FileTypeInfo.Glb,
             FileTypeInfo.Animation

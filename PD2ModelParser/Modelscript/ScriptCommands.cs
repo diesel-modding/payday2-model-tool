@@ -159,16 +159,20 @@ namespace PD2ModelParser.Modelscript
             {
                 defaultRootObject = state.DefaultRootPoint;
             }
-            var throwOnNoParent = effectiveType == FileTypeInfo.Obj;
 
             S.Object3D ParentFinder(string name)
             {
                 if (parentObjects.ContainsKey(name)) return parentObjects[name];
-
-                if (defaultRootObject == null && throwOnNoParent)
-                    throw new Exception($"No default- nor object-rootpoint set for {name}");
-
-                return defaultRootObject;
+                {
+                    if (defaultRootObject == null)
+                    {
+                        state.Log.Status("No root point. Creating 'root_point' at origin");
+                        var root = new S.Object3D("root_point", null);
+                        state.Data.AddSection(root);
+                        defaultRootObject = root;
+                    }
+                    return defaultRootObject;
+                }
             }
 
             Importers.IOptionReceiver opts = effectiveType.CreateOptionReceiver();
