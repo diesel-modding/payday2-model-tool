@@ -63,7 +63,7 @@ namespace PD2ModelParser
         class DaeType : FileTypeInfo
         {
             public override string Extension => "dae";
-            public override string Name => "Collada";
+            public override string Name => "Collada (Deprecated)";
             public override bool CanExport => true;
             public override bool CanImport => false;
             public override void Import(FullModelData data, string path, bool createModels, Func<string, Sections.Object3D> parentFinder, IOptionReceiver options)
@@ -107,12 +107,12 @@ namespace PD2ModelParser
         public static readonly FileTypeInfo Animation = new AnimationType();
 
         public static IReadOnlyList<FileTypeInfo> Types { get; } = new List<FileTypeInfo>() {
-            FileTypeInfo.Dae,
-            FileTypeInfo.ObjUV0,
-            FileTypeInfo.ObjUV1,
             FileTypeInfo.Gltf,
             FileTypeInfo.Glb,
-            FileTypeInfo.Animation
+            FileTypeInfo.ObjUV0,
+            FileTypeInfo.ObjUV1,
+            FileTypeInfo.Animation,
+            FileTypeInfo.Dae
         };
     }
 }
