@@ -33,14 +33,14 @@ namespace PD2ModelParser
             if (args.Length == 0)
             {
                 // Set a sane default logging level to avoid console spam
-                ConsoleLogger.minimumLevel = LoggerLevel.Info;
+                ConsoleLogger.minimumLevel = LoggerLevel.Debug;
 
                 return true;
             }
 
             bool show_help = false;
             bool gui = false;
-            int verbosity = (int) LoggerLevel.Info;
+            int verbosity = (int) LoggerLevel.Debug;
 
             var script = new List<IScriptItem>();
 
