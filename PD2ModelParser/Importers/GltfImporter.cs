@@ -21,9 +21,7 @@ namespace PD2ModelParser.Importers
         public static void Import(FullModelData fmd, string path, bool createModels, Func<string, DM.Object3D> parentFinder, IOptionReceiver opts)
         {
             GLTF.ModelRoot gltf = null;
-            // Try to load normally. If load throws due to invalid tangents, fall back to
-            // a minimal GLB that strips TANGENT attribute references so we can proceed
-            // and then regenerate tangents via SharpGLTF.Toolkit before import.
+            // Try to load normally. If load throws due to invalid tangents we gotta fix remove, reload then fix tangents.
             try
             {
                 gltf = GLTF.ModelRoot.Load(path);
