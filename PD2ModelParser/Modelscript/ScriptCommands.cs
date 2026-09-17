@@ -409,8 +409,8 @@ namespace PD2ModelParser.Modelscript
             }
             else
             {
-                var newGeom = source.PassthroughGP.Geometry.Clone();
-                newGeom.HashName = new HashName($"{Destination}.Geometry");
+                var newGeom = source.PassthroughGP.DieselGeometry.Clone();
+                newGeom.HashName = new HashName($"{Destination}.DieselGeometry");
 
                 var newTopology = source.TopologyIP.Topology.Clone(Destination);
 
@@ -436,7 +436,7 @@ namespace PD2ModelParser.Modelscript
 
             var newModel = new S.Model(Destination,
                 (uint)newTopoIp.Topology.facelist.Count,
-                newPgp.Geometry.vert_count,
+                newPgp.DieselGeometry.vert_count,
                 newPgp, newTopoIp, newMatGroup, source.Parent);
 
             newModel.version = source.version;

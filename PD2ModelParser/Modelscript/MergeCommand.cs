@@ -108,8 +108,8 @@ namespace PD2ModelParser.Modelscript
                 var src_obj = GetModel(state, donor, name, "Source");
                 var dst_obj = GetModel(state, state.Data, name, "Destination");
 
-                var src_geo = src_obj.PassthroughGP.Geometry;
-                var dst_geo = dst_obj.PassthroughGP.Geometry;
+                var src_geo = src_obj.PassthroughGP.DieselGeometry;
+                var dst_geo = dst_obj.PassthroughGP.DieselGeometry;
 
                 dst_geo.Headers.Clear();
                 dst_geo.Headers.AddRange(src_geo.Headers);

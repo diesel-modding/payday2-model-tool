@@ -189,7 +189,7 @@ namespace PD2ModelParser.Importers
                 }
 
                 PassthroughGP passthrough_section = modelSection.PassthroughGP;
-                Geometry geometry_section = passthrough_section.Geometry;
+                DieselGeometry geometry_section = passthrough_section.DieselGeometry;
                 Topology topology_section = passthrough_section.Topology;
 
                 AddObject(false, obj,
@@ -208,7 +208,7 @@ namespace PD2ModelParser.Importers
                     fmd.AddSection(newMat);
                     MaterialGroup newMatG = new MaterialGroup(newMat);
                     fmd.AddSection(newMatG);
-                    Geometry newGeom = new Geometry(obj);
+                    DieselGeometry newGeom = new DieselGeometry(obj);
                     fmd.AddSection(newGeom);
                     Topology newTopo = new Topology(obj);
                     fmd.AddSection(newTopo);
@@ -232,7 +232,7 @@ namespace PD2ModelParser.Importers
 
         private static void AddObject(bool is_new, obj_data obj,
             Model model_data_section, PassthroughGP passthrough_section,
-            Geometry geometry_section, Topology topology_section)
+            DieselGeometry geometry_section, Topology topology_section)
         {
             List<Face> called_faces = new List<Face>();
             List<int> duplicate_verts = new List<int>();
@@ -630,7 +630,7 @@ namespace PD2ModelParser.Importers
 
                     Model model_data_section = (Model)fm.parsed_sections[modelSectionid];
                     PassthroughGP passthrough_section = model_data_section.PassthroughGP;
-                    Geometry geometry_section = passthrough_section.Geometry;
+                    DieselGeometry geometry_section = passthrough_section.DieselGeometry;
                     Topology topology_section = passthrough_section.Topology;
 
                     //Arrange UV and Normals
@@ -664,7 +664,7 @@ namespace PD2ModelParser.Importers
 
                     geometry_section.UVs[1] = new_arranged_UV.ToList();
 
-                    passthrough_section.Geometry.UVs[1] = new_arranged_UV.ToList();
+                    passthrough_section.DieselGeometry.UVs[1] = new_arranged_UV.ToList();
                 }
             }
             catch (Exception exc)

@@ -12,7 +12,7 @@ namespace PD2ModelParser
         public const uint material_tag = 0x3C54609C; // Material
         public const uint object3D_tag = 0x0FFCD100; // Object3D
         public const uint model_data_tag = 0x62212D88; // Model data
-        public const uint geometry_tag = 0x7AB072D3; // Geometry
+        public const uint geometry_tag = 0x7AB072D3; // DieselGeometry
         public const uint topology_tag = 0x4C507A13; // Topology
         public const uint passthroughGP_tag = 0xE3A3B1CA; // PassthroughGP
         public const uint topologyIP_tag = 0x03B634BD; // TopologyIP

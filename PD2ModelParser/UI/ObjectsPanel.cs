@@ -12,7 +12,6 @@ namespace PD2ModelParser.UI
     public partial class ObjectsPanel : UserControl
     {
         private readonly Dictionary<uint, TreeNode> nodes = new Dictionary<uint, TreeNode>();
-        private readonly ContextMenuStrip nodeRightclickMenu;
         private TreeNode menuTarget;
         private FullModelData data;
 
@@ -24,11 +23,6 @@ namespace PD2ModelParser.UI
 
             modelFile.Filter = "Diesel Model Files (*.model)|*.model";
             scriptFile.Filter = "Model Script Files (*.mscript)|*.mscript";
-            nodeRightclickMenu = new ContextMenuStrip();
-
-            ToolStripButton properties = new ToolStripButton("Properties");
-            properties.Click += optProperties_Click;
-            nodeRightclickMenu.Items.Add(properties);
         }
 
         /// <summary>
@@ -101,7 +95,6 @@ namespace PD2ModelParser.UI
                 return;
 
             menuTarget = e.Node;
-            nodeRightclickMenu.Show(treeView, e.Location);
         }
 
         private void optProperties_Click(object sender, EventArgs e)

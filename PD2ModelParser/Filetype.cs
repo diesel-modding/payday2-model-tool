@@ -95,8 +95,8 @@ namespace PD2ModelParser
         public static readonly FileTypeInfo Animation = new AnimationType();
 
         public static IReadOnlyList<FileTypeInfo> Types { get; } = new List<FileTypeInfo>() {
-            FileTypeInfo.Gltf,
             FileTypeInfo.Glb,
+            FileTypeInfo.Gltf,
             FileTypeInfo.ObjUV0,
             FileTypeInfo.ObjUV1,
             FileTypeInfo.Animation,

@@ -33,19 +33,25 @@ namespace PD2Bundle
             }
         }
 
-        public void Clear()
-        {
-            this.hashes.Clear();
-            loaded = false;
-        }
+        private bool loaded = false;
+        private bool reloadRequested = false;
 
-        bool loaded = false;
+        public void RequestReload()
+        {
+            reloadRequested = true;
+        }
 
         public bool Load()
         {
-            if (loaded) return true;
+            if (loaded && !reloadRequested)
+                return true;
 
-            foreach(var name in GetHashfileNames())
+            hashes.Clear();
+
+            loaded = false;
+            reloadRequested = false;
+
+            foreach (var name in GetHashfileNames())
             {
                 loaded |= TryLoad(name);
             }

@@ -60,7 +60,7 @@ namespace PD2ModelParser.Exporters
                             if (model_data.version == 6)
                                 continue;
                             PassthroughGP passthrough_section = model_data.PassthroughGP;
-                            Geometry geometry_section = passthrough_section.Geometry;
+                            DieselGeometry geometry_section = passthrough_section.DieselGeometry;
                             Log.Default.Debug("geometry_section {0}", geometry_section);
                             Topology topology_section = passthrough_section.Topology;
                             sw.WriteLine("#Diesel Model Tool");

@@ -20,7 +20,7 @@ namespace PD2ModelParser.Sections
     public class RenderAtom
     {
         /// <summary>
-        /// Where in the <see cref="Geometry"/> indexes are relative to.
+        /// Where in the <see cref="DieselGeometry"/> indexes are relative to.
         /// </summary>
         public UInt32 BaseVertex { get; set; }
 
@@ -69,7 +69,7 @@ namespace PD2ModelParser.Sections
 
         //Version 6
         [Category("Model")]
-        public float v6_unknown7 { get; set; }
+        public float RadDistance { get; set; }
         [Category("Model")]
         public UInt32 v6_unknown8 { get; set; }
 
@@ -136,7 +136,7 @@ namespace PD2ModelParser.Sections
 
         }
 
-        public Model(string object_name, float v6_unknown7, System.Numerics.Vector3 bounds_min, System.Numerics.Vector3 bounds_max, Object3D parent)
+        public Model(string object_name, float RadDistance, System.Numerics.Vector3 bounds_min, System.Numerics.Vector3 bounds_max, Object3D parent)
             : base(object_name, parent)
         {
             this.size = 0;
@@ -146,7 +146,7 @@ namespace PD2ModelParser.Sections
             this.version = 6;
             this.BoundsMin = bounds_min;
             this.BoundsMax = bounds_max;
-            this.v6_unknown7 = v6_unknown7;
+            this.RadDistance = RadDistance;
             this.v6_unknown8 = 0;
         }
 
@@ -168,7 +168,7 @@ namespace PD2ModelParser.Sections
                 this.BoundsMin = instream.ReadVector3();
                 this.BoundsMax = instream.ReadVector3();
 
-                this.v6_unknown7 = instream.ReadSingle();
+                this.RadDistance = instream.ReadSingle();
                 this.v6_unknown8 = instream.ReadUInt32();
             }
             else
@@ -219,7 +219,7 @@ namespace PD2ModelParser.Sections
             {
                 outstream.Write(this.BoundsMin);
                 outstream.Write(this.BoundsMax);
-                outstream.Write(this.v6_unknown7);
+                outstream.Write(this.RadDistance);
                 outstream.Write(this.v6_unknown8);
             }
             else
@@ -258,7 +258,7 @@ namespace PD2ModelParser.Sections
         public override string ToString()
         {
             if (this.version == 6)
-                return "[Model_v6] " + base.ToString() + " version: " + this.version + " unknown5: " + this.BoundsMin + " unknown6: " + this.BoundsMax + " unknown7: " + this.v6_unknown7 + " unknown8: " + this.v6_unknown8 + (this.remaining_data != null ? " REMAINING DATA! " + this.remaining_data.Length + " bytes" : "");
+                return "[Model_v6] " + base.ToString() + " version: " + this.version + " unknown5: " + this.BoundsMin + " unknown6: " + this.BoundsMax + " RadDistance: " + this.RadDistance + " unknown8: " + this.v6_unknown8 + (this.remaining_data != null ? " REMAINING DATA! " + this.remaining_data.Length + " bytes" : "");
             else
             {
                 var atoms_string = string.Join(",", RenderAtoms.Select(i => i.ToString()));
@@ -273,7 +273,7 @@ namespace PD2ModelParser.Sections
             var gp = this.PassthroughGP;
             if (gp == null) { return; }
 
-            var geo = gp.Geometry;
+            var geo = gp.DieselGeometry;
             if (geo == null) { return; }
 
             if (geo.verts.Count == 0) { return; }

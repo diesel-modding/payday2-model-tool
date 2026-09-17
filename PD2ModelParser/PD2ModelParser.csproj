@@ -2,32 +2,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+	<TargetFramework>net10.0-windows</TargetFramework>
+	<SupportedOSPlatformVersion>6.1</SupportedOSPlatformVersion>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
-    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
   <ItemGroup>
     <Content Include="modeltool.ico" />
   </ItemGroup>
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.WindowsDesktop.App" />
-  </ItemGroup>
-  <ItemGroup>
-      <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="11.0.0-rc.1.26425.128" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="11.0.0-rc.1.26425.128" />
     <PackageReference Include="Mono.Options" Version="6.12.0.148" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.5-beta1" />
     <PackageReference Include="NUnit" Version="5.0.0-beta.1" />
-      <PackageReference Include="SharpGLTF.Core" Version="1.0.7" />
-    <PackageReference Include="System.Buffers" Version="4.6.1" />
-    <PackageReference Include="System.Memory" Version="4.6.3" />
-    <PackageReference Include="System.Numerics.Vectors" Version="4.6.1" />
-    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
+    <PackageReference Include="SharpGLTF.Core" Version="1.0.7" />
     <PackageReference Include="System.Text.Encodings.Web" Version="11.0.0-rc.1.26425.128" />
     <PackageReference Include="System.Text.Json" Version="11.0.0-rc.1.26425.128" />
-    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
     <PackageReference Include="System.ValueTuple" Version="4.6.2" />
   </ItemGroup>
   <ItemGroup>
@@ -43,5 +34,7 @@
     <StartupObject />
     <PlatformTarget>x64</PlatformTarget>
     <AssemblyName>DieselModelTool</AssemblyName>
+    <AssemblyTitle>DieselModelTool</AssemblyTitle>
+    <Title>DieselModelTool</Title>
   </PropertyGroup>
 </Project>
