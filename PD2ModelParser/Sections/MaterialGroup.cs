@@ -6,13 +6,13 @@ using System.Linq;
 namespace PD2ModelParser.Sections
 {
     [ModelFileSection(Tags.material_group_tag)]
-    class MaterialGroup : AbstractSection, ISection, IPostLoadable
+    internal class MaterialGroup : AbstractSection, ISection, IPostLoadable
     {
-        private UInt32 size = 0;
-        private List<UInt32> itemIds = new List<UInt32>();
+        private readonly UInt32 size = 0;
+        private List<UInt32> itemIds = [];
 
         public UInt32 Count => (uint)Items.Count;
-        public List<Material> Items { get; set; } = new List<Material>();
+        public List<Material> Items { get; set; } = [];
         public byte[] remaining_data = null;
 
         public MaterialGroup(Material mat)
@@ -22,7 +22,7 @@ namespace PD2ModelParser.Sections
 
         public MaterialGroup(IEnumerable<Material> mats)
         {
-            this.Items = mats.ToList();
+            this.Items = [.. mats];
         }
 
         public MaterialGroup(BinaryReader instream, SectionHeader section)

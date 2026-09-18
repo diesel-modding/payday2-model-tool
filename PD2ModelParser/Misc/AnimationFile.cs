@@ -6,27 +6,23 @@ using System.Numerics;
 using PD2ModelParser.Sections;
 
 namespace PD2ModelParser.Misc {
-    class AnimationFileObject {
-        public string Name;
-        public IList<Keyframe<Vector3>> PositionKeyframes = new List<Keyframe<Vector3>>();
-        public IList<Keyframe<Quaternion>> RotationKeyframes = new List<Keyframe<Quaternion>>();
-
-        public AnimationFileObject(string name) {
-            this.Name = name;
-        }
+    internal class AnimationFileObject(string name)
+    {
+        public string Name = name;
+        public IList<Keyframe<Vector3>> PositionKeyframes = [];
+        public IList<Keyframe<Quaternion>> RotationKeyframes = [];
     }
 
-    class AnimationFile {
-        public List<AnimationFileObject> Objects = new List<AnimationFileObject>();
+    internal class AnimationFile {
+        public List<AnimationFileObject> Objects = [];
 
         public static void ZLibDecompress(Stream stream, Stream tragetStream) {
-            using (var zs = new ZLIBStream(stream, CompressionMode.Decompress, true)) {
-                int bytesLeidos = 0;
-                byte[] buffer = new byte[1024];
+            using var zs = new ZLIBStream(stream, CompressionMode.Decompress, true);
+            int bytesLeidos = 0;
+            byte[] buffer = new byte[1024];
 
-                while ((bytesLeidos = zs.Read(buffer, 0, buffer.Length)) > 0)
-                    tragetStream.Write(buffer, 0, bytesLeidos);
-            }
+            while ((bytesLeidos = zs.Read(buffer, 0, buffer.Length)) > 0)
+                tragetStream.Write(buffer, 0, bytesLeidos);
         }
 
         public static void ZLibCompress(Stream stream, Stream targetStream, CompressionLevel? level = null) {
@@ -40,24 +36,23 @@ namespace PD2ModelParser.Misc {
                     zs.Write(buffer, 0, bytesLeidos);
             }
 
-            using (var bw = new BinaryWriter(targetStream))
-                bw.Write((uint)stream.Length);
+            using var bw = new BinaryWriter(targetStream);
+            bw.Write((uint)stream.Length);
         }
 
         public void Read(string filePath) {
-            FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+            FileStream fs = new(filePath, FileMode.Open, FileAccess.Read);
             Read(fs);
         }
 
         public void Read(FileStream fs) {
-            MemoryStream ms = new MemoryStream();
+            MemoryStream ms = new();
             ZLibDecompress(fs, ms);
-            BinaryReader br = new BinaryReader(ms);
+            BinaryReader br = new(ms);
             ReadRaw(br);
         }
 
         public void ReadRaw(BinaryReader br) {
-            long savePos = 0;
 
             // Header Shit
             br.BaseStream.Seek(20, SeekOrigin.Begin);
@@ -78,19 +73,22 @@ namespace PD2ModelParser.Misc {
 
             // Objects
             br.BaseStream.Seek(objectNameOffset, SeekOrigin.Begin);
-            for (int i = 0; i < objectNameCount; i++) {
+            long savePos;
+            for (int i = 0; i < objectNameCount; i++)
+            {
                 uint nameOffset = br.ReadUInt32();
                 savePos = br.BaseStream.Position;
 
                 br.BaseStream.Seek(nameOffset, SeekOrigin.Begin);
-                List<char> s = new List<char>();
+                List<char> s = [];
                 char c = ' ';
-                while (c != '\0') {
+                while (c != '\0')
+                {
                     c = br.ReadChar();
                     if (c != '\0')
                         s.Add(c);
                 }
-                Objects.Add(new AnimationFileObject(new string(s.ToArray())));
+                Objects.Add(new AnimationFileObject(new string([.. s])));
 
                 br.BaseStream.Seek(savePos, SeekOrigin.Begin);
             }
@@ -113,7 +111,7 @@ namespace PD2ModelParser.Misc {
                     float timestamp = br.ReadSingle();
                     switch (positionType) {
                         case (499549920):
-                            Vector3 vector3 = new Vector3(
+                            Vector3 vector3 = new(
                                 ((br.ReadUInt16() / 65535) * 200) - 100,
                                 ((br.ReadUInt16() / 65535) * 200) - 100,
                                 ((br.ReadUInt16() / 65535) * 200) - 100
@@ -122,7 +120,7 @@ namespace PD2ModelParser.Misc {
                             currentObject.PositionKeyframes.Add(new Keyframe<Vector3>(timestamp, vector3));
                             break;
                         case (295096242):
-                            Vector3 vector = new Vector3(br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
+                            Vector3 vector = new(br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
                             if (br.ReadUInt32() == 0) {
                                 currentObject.PositionKeyframes.Add(new Keyframe<Vector3>(
                                     timestamp,
@@ -160,7 +158,7 @@ namespace PD2ModelParser.Misc {
                             ));
                             break;
                         case (3910822330):
-                            Quaternion quaternion = new Quaternion(br.ReadSingle(), br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
+                            Quaternion quaternion = new(br.ReadSingle(), br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
                             if (br.ReadUInt32() == 0) {
                                 currentObject.RotationKeyframes.Add(new Keyframe<Quaternion>(
                                     timestamp,
@@ -176,14 +174,14 @@ namespace PD2ModelParser.Misc {
         }
 
         public void Write(string filePath) {
-            FileStream fs = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+            FileStream fs = new(filePath, FileMode.Create, FileAccess.Write);
             Write(fs);
             fs.Close();
         }
 
         public void Write(Stream stream) {
-            MemoryStream ms = new MemoryStream();
-            BinaryWriter bw = new BinaryWriter(ms);
+            MemoryStream ms = new();
+            BinaryWriter bw = new(ms);
             WriteRaw(bw);
 
             ZLibCompress(ms, stream);

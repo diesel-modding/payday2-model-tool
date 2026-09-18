@@ -7,7 +7,7 @@ using System.Numerics;
 using GLTF = SharpGLTF.Schema2;
 namespace PD2ModelParser.Exporters
 {
-    class GltfExporter
+    internal class GltfExporter
     {
         public static string ExportFile(FullModelData data, string path, bool binary)
         {
@@ -26,14 +26,14 @@ namespace PD2ModelParser.Exporters
             }
             return path;
         }
-        FullModelData data;
-        GLTF.ModelRoot root;
-        GLTF.Scene scene;
-        Dictionary<ISection, GLTF.Material> materialsBySection;
-        Dictionary<ISection, GLTF.Node> nodesBySection;
-        List<(Model, GLTF.Node)> toSkin;
-        readonly float scaleFactor = 0.01f;
-        static List<Object3D> GetSkeletonObjects(SkinBones skinBones)
+        private FullModelData data;
+        private GLTF.ModelRoot root;
+        private GLTF.Scene scene;
+        private Dictionary<ISection, GLTF.Material> materialsBySection;
+        private Dictionary<ISection, GLTF.Node> nodesBySection;
+        private List<(Model, GLTF.Node)> toSkin;
+        private readonly float scaleFactor = 0.01f;
+        private static List<Object3D> GetSkeletonObjects(SkinBones skinBones)
         {
             var bones = new List<Object3D>();
             var rootBone = skinBones.ProbablyRootBone;
@@ -48,7 +48,7 @@ namespace PD2ModelParser.Exporters
             AddChildren(rootBone);
             return bones;
         }
-        GLTF.ModelRoot Convert(FullModelData data)
+        private GLTF.ModelRoot Convert(FullModelData data)
         {
             materialsBySection = [];
             nodesBySection = [];
@@ -75,7 +75,7 @@ namespace PD2ModelParser.Exporters
             }
             return root;
         }
-        void CreateNodeFromObject3D(Object3D thing, GLTF.IVisualNodeContainer parent)
+        private void CreateNodeFromObject3D(Object3D thing, GLTF.IVisualNodeContainer parent)
         {
             var node = parent.CreateNode(thing.Name);
             nodesBySection[thing] = node;
@@ -126,7 +126,7 @@ namespace PD2ModelParser.Exporters
             }
             if (thing is Model mod)
             {
-                if (mod.version == 3)
+                if (mod.Version == 3)
                 {
                     node.Mesh = GetMeshForModel(mod);
                     if (mod.SkinBones != null)
@@ -134,17 +134,17 @@ namespace PD2ModelParser.Exporters
                         toSkin.Add((mod, node));
                     }
                 }
-                else if (mod.version == 6)
+                else if (mod.Version == 6)
                 {
                     if (IsPrimitiveModel(mod))
                     {
                         node.Mesh = CreatePrimitiveMesh(mod);
-                        Log.Default.Warn("EXPORT PRIMITIVE: Name={0}, BoundsMin={1}, BoundsMax={2}, RadDistance={3}", mod.Name, mod.BoundsMin, mod.BoundsMax, mod.RadDistance);
+                        Log.Default.Warn("EXPORT PRIMITIVE: Name={0}, BoundsMin={1}, BoundsMax={2}, DistanceRadius={3}", mod.Name, mod.BoundsMin, mod.BoundsMax, mod.DistanceRadius);
                     }
                 }
                 else
                 {
-                    throw new Exception($"Model {mod.Name} is of unknown version {mod.version}");
+                    throw new Exception($"Model {mod.Name} is of unknown version {mod.Version}");
                 }
             }
             else if (thing is Light dl)
@@ -165,7 +165,7 @@ namespace PD2ModelParser.Exporters
                 CreateNodeFromObject3D(i, node);
             }
         }
-        void SkinModel(Model model, GLTF.Node node)
+        private void SkinModel(Model model, GLTF.Node node)
         {
             if (model.SkinBones == null) return;
             var skinbones = model.SkinBones;
@@ -186,7 +186,7 @@ namespace PD2ModelParser.Exporters
                 int skinBoneIndex = skinbones.Objects.IndexOf(bone);
                 if (skinBoneIndex >= 0)
                 {
-                    ibm = skinbones.rotations[skinBoneIndex];
+                    ibm = skinbones.Rotations[skinBoneIndex];
                 }
                 else
                 {
@@ -206,17 +206,17 @@ namespace PD2ModelParser.Exporters
             skin.BindJoints(joints);
             node.Skin = skin;
         }
-        static bool IsPrimitiveModel(Model model)
+        private static bool IsPrimitiveModel(Model model)
         {
             if (model == null) return false;
-            if (model.version != 6) return false;
+            if (model.Version != 6) return false;
             if (model.PassthroughGP != null) return false;
             if (model.TopologyIP != null) return false;
             string name = model.HashName?.String ?? model.Name ?? "";
             return
             name.StartsWith("c_sphere_", StringComparison.OrdinalIgnoreCase) || name.StartsWith("c_capsule_", StringComparison.OrdinalIgnoreCase) || name.StartsWith("c_box_", StringComparison.OrdinalIgnoreCase);
         }
-        GLTF.Mesh CreatePrimitiveMesh(Model model)
+        private GLTF.Mesh CreatePrimitiveMesh(Model model)
         {
             string name = model.HashName?.String ?? model.Name ?? "";
             if (name.StartsWith("c_sphere_", StringComparison.OrdinalIgnoreCase)) return CreateSphereMesh(model);
@@ -224,7 +224,7 @@ namespace PD2ModelParser.Exporters
             if (name.StartsWith("c_box_", StringComparison.OrdinalIgnoreCase)) return CreateBoxMesh(model);
             return null;
         }
-        GLTF.Mesh CreateBoxMesh(Model model)
+        private GLTF.Mesh CreateBoxMesh(Model model)
         {
             Vector3 min = model.BoundsMin * scaleFactor;
             Vector3 max = model.BoundsMax * scaleFactor;
@@ -242,10 +242,10 @@ namespace PD2ModelParser.Exporters
             var indices = new ushort[]{0,2,1,0,3,2,4,5,6,4,6,7,0,1,5,0,5,4,2,3,7,2,7,6,0,4,7,0,7,3,1,2,6,1,6,5};
             return CreateGeneratedMesh(model.Name, vertices, indices);
         }
-        GLTF.Mesh CreateSphereMesh(Model model)
+        private GLTF.Mesh CreateSphereMesh(Model model)
         {
             Vector3 size = (model.BoundsMax - model.BoundsMin) * scaleFactor;
-            float radius = MathF.Min(MathF.Min(size.X, size.Y), size.Z) * 0.5f;
+            float Radius = MathF.Min(MathF.Min(size.X, size.Y), size.Z) * 0.5f;
             Vector3 center = (model.BoundsMin + model.BoundsMax) * 0.5f* scaleFactor;
             const int segments = 24;
             const int rings = 12;
@@ -263,7 +263,7 @@ namespace PD2ModelParser.Exporters
                     float theta = u * MathF.PI * 2.0f;
                     float sinTheta = MathF.Sin(theta);
                     float cosTheta = MathF.Cos(theta);
-                    vertices.Add(center + new Vector3(sinPhi * cosTheta * radius, sinPhi * sinTheta * radius, cosPhi * radius));
+                    vertices.Add(center + new Vector3(sinPhi * cosTheta * Radius, sinPhi * sinTheta * Radius, cosPhi * Radius));
                 }
             }
             for (int y = 0; y < rings; y++)
@@ -284,7 +284,7 @@ namespace PD2ModelParser.Exporters
             }
             return CreateGeneratedMesh(model.Name, vertices, [.. indices]);
         }
-        GLTF.Mesh CreateCapsuleMesh(Model model)
+        private GLTF.Mesh CreateCapsuleMesh(Model model)
         {
             Vector3 size = (model.BoundsMax - model.BoundsMin) * scaleFactor;
             Vector3 center = (model.BoundsMin + model.BoundsMax) * 0.5f* scaleFactor;
@@ -293,8 +293,8 @@ namespace PD2ModelParser.Exporters
             else if (size.Y >= size.X && size.Y >= size.Z) axis = 1;
             else axis = 2;
             float largest = axis == 0 ? size.X : axis == 1 ? size.Y : size.Z;
-            float radius = axis == 0 ? MathF.Min(size.Y, size.Z) * 0.5f : axis == 1 ? MathF.Min(size.X, size.Z) * 0.5f : MathF.Min(size.X, size.Y) * 0.5f;
-            float cylinderLength = MathF.Max(0, largest - radius * 2.0f);
+            float Radius = axis == 0 ? MathF.Min(size.Y, size.Z) * 0.5f : axis == 1 ? MathF.Min(size.X, size.Z) * 0.5f : MathF.Min(size.X, size.Y) * 0.5f;
+            float cylinderLength = MathF.Max(0, largest - Radius * 2.0f);
             const int segments = 24;
             const int hemisphereRings = 8;
             const int cylinderRings = 4;
@@ -305,22 +305,22 @@ namespace PD2ModelParser.Exporters
             {
                 float t = (float)y / hemisphereRings;
                 float phi = -MathF.PI * 0.5f + t * MathF.PI * 0.5f;
-                float z = -halfCylinder + MathF.Sin(phi) * radius;
-                float ringRadius = MathF.Cos(phi) * radius;
+                float z = -halfCylinder + MathF.Sin(phi) * Radius;
+                float ringRadius = MathF.Cos(phi) * Radius;
                 AddCapsuleRing(vertices, center, ringRadius, z, segments);
             }
             for (int y = 1; y < cylinderRings; y++)
             {
                 float t = (float)y / cylinderRings;
                 float z = -halfCylinder + t * cylinderLength;
-                AddCapsuleRing(vertices, center, radius, z, segments);
+                AddCapsuleRing(vertices, center, Radius, z, segments);
             }
             for (int y = 0; y <= hemisphereRings; y++)
             {
                 float t = (float)y / hemisphereRings;
                 float phi = t * MathF.PI * 0.5f;
-                float z = halfCylinder + MathF.Sin(phi) * radius;
-                float ringRadius = MathF.Cos(phi) * radius;
+                float z = halfCylinder + MathF.Sin(phi) * Radius;
+                float ringRadius = MathF.Cos(phi) * Radius;
                 AddCapsuleRing(vertices, center, ringRadius, z, segments);
             }
             int rings = vertices.Count / (segments + 1);
@@ -358,16 +358,16 @@ namespace PD2ModelParser.Exporters
             }
             return CreateGeneratedMesh(model.Name, vertices, [.. indices]);
         }
-        static void AddCapsuleRing(List<Vector3> vertices, Vector3 center, float radius, float z, int segments)
+        private static void AddCapsuleRing(List<Vector3> vertices, Vector3 center, float Radius, float z, int segments)
         {
             for (int x = 0; x <= segments; x++)
             {
                 float u = (float)x / segments;
                 float theta = u * MathF.PI * 2.0f;
-                vertices.Add(center + new Vector3(MathF.Cos(theta) * radius, MathF.Sin(theta) * radius, z));
+                vertices.Add(center + new Vector3(MathF.Cos(theta) * Radius, MathF.Sin(theta) * Radius, z));
             }
         }
-        GLTF.Mesh CreateGeneratedMesh(string name, IList<Vector3> vertices, ushort[] indices)
+        private GLTF.Mesh CreateGeneratedMesh(string name, IList<Vector3> vertices, ushort[] indices)
         {
             var mesh = root.CreateMesh(name);
             var positionAccessor = MakeVertexAttributeAccessor($"{name}_position", vertices, 12, GLTF.DimensionType.VEC3, i => i, ma => ma.AsVector3Array());
@@ -378,7 +378,7 @@ namespace PD2ModelParser.Exporters
             primitive.SetIndexAccessor(indexAccessor);
             return mesh;
         }
-        GLTF.Accessor CreateIndexAccessor(string name, ushort[] indices)
+        private GLTF.Accessor CreateIndexAccessor(string name, ushort[] indices)
         {
             var buf = new ArraySegment<byte>(new byte[indices.Length * sizeof(ushort)]);
             var mai = new MemoryAccessInfo(name, 0, indices.Length, 0, GLTF.DimensionType.SCALAR, GLTF.EncodingType.UNSIGNED_SHORT);
@@ -392,7 +392,7 @@ namespace PD2ModelParser.Exporters
             accessor.SetIndexData(ma);
             return accessor;
         }
-        GLTF.Mesh GetMeshForModel(Model model)
+        private GLTF.Mesh GetMeshForModel(Model model)
         {
             if (model.PassthroughGP == null) return null;
             var mesh = root.CreateMesh(model.Name);
@@ -438,7 +438,7 @@ namespace PD2ModelParser.Exporters
             }
             return mesh;
         }
-        IEnumerable<(GLTF.Accessor, GLTF.Material)> CreatePrimitiveIndices(Topology topo, IEnumerable<RenderAtom> atoms, MaterialGroup materialGroup)
+        private IEnumerable<(GLTF.Accessor, GLTF.Material)> CreatePrimitiveIndices(Topology topo, IEnumerable<RenderAtom> atoms, MaterialGroup materialGroup)
         {
             var buf = new ArraySegment<byte>(new byte[topo.facelist.Count * 3 * 2]);
             var mai = new MemoryAccessInfo($"indices_{topo.HashName}", 0, topo.facelist.Count * 3, 0, GLTF.DimensionType.SCALAR, GLTF.EncodingType.UNSIGNED_SHORT);
@@ -467,7 +467,7 @@ namespace PD2ModelParser.Exporters
                 return (accessor, material);
             }
         }
-        List<(string, GLTF.Accessor)> GetGeometryAttributes(DieselGeometry geometry, Dictionary<int, int> jointRemap)
+        private List<(string, GLTF.Accessor)> GetGeometryAttributes(DieselGeometry geometry, Dictionary<int, int> jointRemap)
         {
             List<(string, GLTF.Accessor)> result;
             result = [];
@@ -595,12 +595,12 @@ namespace PD2ModelParser.Exporters
             }
             return result;
         }
-        Vector2 FixupUV(Vector2 input) => new(input.X, 1 - input.Y);
-        GLTF.Accessor MakeVertexAttributeAccessor<TSource, TResult>(string maiName, IList<TSource> source, int stride, GLTF.DimensionType dimtype, Func<TSource, TResult> conv, Func<MemoryAccessor, IList<TResult>> getcontainer, GLTF.EncodingType enc = GLTF.EncodingType.FLOAT, bool normalized = false)
+        private Vector2 FixupUV(Vector2 input) => new(input.X, 1 - input.Y);
+        private GLTF.Accessor MakeVertexAttributeAccessor<TSource, TResult>(string maiName, IList<TSource> source, int stride, GLTF.DimensionType dimtype, Func<TSource, TResult> conv, Func<MemoryAccessor, IList<TResult>> getcontainer, GLTF.EncodingType enc = GLTF.EncodingType.FLOAT, bool normalized = false)
         {
             return MakeVertexAttributeAccessor(maiName, source, stride, dimtype, (s, i) => conv(s), getcontainer, enc, normalized);
         }
-        GLTF.Accessor MakeVertexAttributeAccessor<TSource, TResult>(string maiName, IList<TSource> source, int stride, GLTF.DimensionType dimtype, Func<TSource, int, TResult> conv, Func<MemoryAccessor, IList<TResult>> getcontainer, GLTF.EncodingType enc = GLTF.EncodingType.FLOAT, bool normalized = false)
+        private GLTF.Accessor MakeVertexAttributeAccessor<TSource, TResult>(string maiName, IList<TSource> source, int stride, GLTF.DimensionType dimtype, Func<TSource, int, TResult> conv, Func<MemoryAccessor, IList<TResult>> getcontainer, GLTF.EncodingType enc = GLTF.EncodingType.FLOAT, bool normalized = false)
         {
             var mai = new MemoryAccessInfo(maiName, 0, source.Count, stride, dimtype, enc, normalized);
             var ma = new MemoryAccessor(new ArraySegment<byte>(new byte[source.Count * stride]), mai);

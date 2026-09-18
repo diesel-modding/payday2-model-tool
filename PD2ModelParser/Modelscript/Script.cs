@@ -63,10 +63,8 @@ namespace PD2ModelParser.Modelscript
 
         public static IEnumerable<IScriptItem> ParseXml(string path)
         {
-            using (var tr = new StreamReader(path))
-            {
-                return ParseXml(tr);
-            }
+            using var tr = new StreamReader(path);
+            return ParseXml(tr);
         }
 
         public static IList<IScriptItem> ParseXml(TextReader tr)
@@ -194,7 +192,7 @@ namespace PD2ModelParser.Modelscript
         }
     }
 
-    static class ScriptXml {
+    internal static class ScriptXml {
 
         public static string RequiredAttr(XElement elem, string attr)
         {
@@ -231,17 +229,16 @@ namespace PD2ModelParser.Modelscript
             return new Quaternion(vec, W);
         }
 
-        public static readonly char[] ValueSeparators = new char[] { ' ', '\t', '\r', '\n', ',' };
+        public static readonly char[] ValueSeparators = [' ', '\t', '\r', '\n', ','];
         public static List<float> FloatsFromText(XElement elem)
-            => elem.Value.Trim(ValueSeparators)
+            => [.. elem.Value.Trim(ValueSeparators)
                 .Split(ValueSeparators, StringSplitOptions.RemoveEmptyEntries)
-                .Select(i => float.Parse(i))
-                .ToList();
+                .Select(i => float.Parse(i))];
 
         public static Matrix4x4 MatrixFromText(XElement elem)
         {
             var floats = FloatsFromText(elem);
-            Matrix4x4 m = new Matrix4x4();
+            Matrix4x4 m = new();
             for (var i = 0; i < 16; i++)
                 m.Index(i) = floats[i];
             return m;
@@ -265,7 +262,7 @@ namespace PD2ModelParser.Modelscript
             }
         }
 
-        public ILogger Log => PD2ModelParser.Log.Default;
+        public static ILogger Log => PD2ModelParser.Log.Default;
     }
 
     public interface IScriptItem
@@ -313,7 +310,7 @@ namespace PD2ModelParser.Modelscript
                 {
                     typ = pt;
                     parser = (s) => Enum.Parse(pt, s, true);
-                    if(pt.GetCustomAttribute(typeof(FlagsAttribute)) != null)
+                    if(pt.GetCustomAttribute<FlagsAttribute>() != null)
                     {
                         errmsg = "must be comma-separated list of at least one of ";
                     }
@@ -341,7 +338,7 @@ namespace PD2ModelParser.Modelscript
             }
         }
 
-        private static readonly Dictionary<Type, (Func<string, object>, string)> parsers = new Dictionary<Type, (Func<string, object>, string)>()
+        private static readonly Dictionary<Type, (Func<string, object>, string)> parsers = new()
         {
             { typeof(string), (i => i, "") },
             { typeof(bool), (s => bool.Parse(s), "must be either true or false") },
@@ -351,22 +348,22 @@ namespace PD2ModelParser.Modelscript
             { typeof(int[]), (ParseIntArray, "must be a comma-separated list of integers") }
         };
 
-        private static object ParseStringArray(string s)
+        private static string[] ParseStringArray(string s)
         {
             var sp = s.Split(',');
-            return sp.Select(i => i.Trim()).ToArray();
+            return [.. sp.Select(i => i.Trim())];
         }
 
-        private static object ParseIntArray(string s)
+        private static int[] ParseIntArray(string s)
         {
             var sp = s.Split(',');
-            return sp.Select(i => int.Parse(i.Trim())).ToArray();
+            return [.. sp.Select(i => int.Parse(i.Trim()))];
         }
     }
 
     [AttributeUsage(AttributeTargets.Property, Inherited = true, AllowMultiple = false)]
-    sealed class RequiredAttribute : Attribute { }
+    internal sealed class RequiredAttribute : Attribute { }
 
     [AttributeUsage(AttributeTargets.Property, Inherited = true, AllowMultiple = false)]
-    sealed class NotAttributeAttribute : Attribute { }
+    internal sealed class NotAttributeAttribute : Attribute { }
 }

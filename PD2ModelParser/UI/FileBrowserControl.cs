@@ -17,7 +17,7 @@ namespace PD2ModelParser.UI {
     public partial class FileBrowserControl : UserControl
     {
         // See https://stackoverflow.com/a/8531166
-        private static Regex filterRegex = new Regex(@"(?<Name>[^|]*)\|(?<Extension>[^|]*)\|?");
+        private static readonly Regex filterRegex = new(@"(?<Name>[^|]*)\|(?<Extension>[^|]*)\|?");
 
         public FileBrowserControl()
         {
@@ -27,7 +27,7 @@ namespace PD2ModelParser.UI {
             DragEnter += HandleDragEnter;
             DragDrop += HandleDragDrop;
 
-            ContextMenuStrip cm = new ContextMenuStrip();
+            ContextMenuStrip cm = new();
             ContextMenuStrip = cm;
             ToolStripItem clearItem = cm.Items.Add("Clear");
             clearItem.Click += ClearFileSelected;
@@ -77,7 +77,7 @@ namespace PD2ModelParser.UI {
             }
         }
 
-        private List<string> _allSelected = new List<string>();
+        private List<string> _allSelected = [];
         public List<string> AllSelected
         {
             get
@@ -103,7 +103,7 @@ namespace PD2ModelParser.UI {
 
                     if (MultiFile)
                     {
-                        _allSelected = inputFileBox.Text.Split(';').ToList();
+                        _allSelected = [.. inputFileBox.Text.Split(';')];
                         foreach (string filepath in _allSelected)
                         {
                             if (!File.Exists(filepath))
@@ -119,10 +119,7 @@ namespace PD2ModelParser.UI {
             }
             private set
             {
-                if (value == null)
-                {
-                    value = new List<string>();
-                }
+                value ??= [];
 
                 inputFileBox.Text = string.Join(";", value) ?? "";
                 _allSelected = value;
@@ -130,7 +127,7 @@ namespace PD2ModelParser.UI {
             }
         }
 
-        private void browseBttn_Click(object sender, EventArgs e)
+        private void BrowseBttn_Click(object sender, EventArgs e)
         {
             FileDialog fileDialog;
             if (SaveMode)
@@ -139,8 +136,10 @@ namespace PD2ModelParser.UI {
             }
             else
             {
-                fileDialog = new OpenFileDialog();
-                fileDialog.CheckFileExists = true;
+                fileDialog = new OpenFileDialog
+                {
+                    CheckFileExists = true
+                };
 
                 if (MultiFile)
                 {
@@ -152,7 +151,7 @@ namespace PD2ModelParser.UI {
 
             if (fileDialog.ShowDialog() != DialogResult.OK) return;
 
-            AllSelected = fileDialog.FileNames.ToList();
+            AllSelected = [.. fileDialog.FileNames];
         }
 
         private void HandleDragEnter(object sender, DragEventArgs e)
@@ -206,7 +205,7 @@ namespace PD2ModelParser.UI {
             if (!MultiFile && files.Length != 1)
                 return;
 
-            AllSelected = files.ToList();
+            AllSelected = [.. files];
         }
 
         private void ClearFileSelected(object sender, EventArgs e)
@@ -220,7 +219,7 @@ namespace PD2ModelParser.UI {
             base.SetBoundsCore(x, y, width, Math.Max(inputFileBox.Height, browseBttn.Height), specified);
         }
 
-        class FileBrowserDesigner : ControlDesigner
+        private class FileBrowserDesigner : ControlDesigner
         {
             public FileBrowserDesigner()
             {
@@ -237,16 +236,14 @@ namespace PD2ModelParser.UI {
                     // This isn't pretty, but it works.
 
                     var snaplines = base.SnapLines;
-                    var fbc = Control as FileBrowserControl;
-                    if (fbc == null) { return snaplines; }
+                    if (Control is not FileBrowserControl fbc) { return snaplines; }
 
                     var designer = TypeDescriptor.CreateDesigner(fbc.inputFileBox, typeof(IDesigner));
                     designer.Initialize(fbc.inputFileBox);
 
                     using (designer)
                     {
-                        var boxDesigner = designer as ControlDesigner;
-                        if (boxDesigner == null) { return snaplines; }
+                        if (designer is not ControlDesigner boxDesigner) { return snaplines; }
 
                         foreach (SnapLine i in boxDesigner.SnapLines)
                         {

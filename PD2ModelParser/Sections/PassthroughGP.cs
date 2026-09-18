@@ -6,7 +6,7 @@ namespace PD2ModelParser.Sections
 {
     [ModelFileSection(Tags.passthroughGP_tag)]
     [TypeConverter(typeof(ExpandableObjectConverter))]
-    class PassthroughGP : AbstractSection, ISection, IPostLoadable
+    internal class PassthroughGP : AbstractSection, ISection, IPostLoadable
     {
         public UInt32 size = 8;
         [Category("PassthroughGP")]

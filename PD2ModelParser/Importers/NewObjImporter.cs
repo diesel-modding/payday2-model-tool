@@ -8,174 +8,178 @@ using System.Numerics;
 
 namespace PD2ModelParser.Importers
 {
-    static class NewObjImporter
+    internal static class NewObjImporter
     {
         public static void ImportNewObj(FullModelData fmd, String filepath, bool addNew, Func<string, Object3D> root_point, Importers.IOptionReceiver _)
         {
             Log.Default.Info("Importing new obj with file: {0}", filepath);
 
             //Preload the .obj
-            List<obj_data> objects = new List<obj_data>();
-            List<obj_data> toAddObjects = new List<obj_data>();
+            List<Obj_data> objects = [];
+            List<Obj_data> toAddObjects = [];
 
-            using (FileStream fs = new FileStream(filepath, FileMode.Open, FileAccess.Read))
+            using (FileStream fs = new(filepath, FileMode.Open, FileAccess.Read))
             {
-                using (StreamReader sr = new StreamReader(fs))
-                {
-                    string line;
-                    obj_data obj = new obj_data();
-                    bool reading_faces = false;
-                    int prevMaxVerts = 0;
-                    int prevMaxUvs = 0;
-                    int prevMaxNorms = 0;
-                    string current_shade_group = null;
+                using StreamReader sr = new(fs);
+                string line;
+                Obj_data obj_data = new();
+                Obj_data obj = obj_data;
+                bool reading_faces = false;
+                int prevMaxVerts = 0;
+                int prevMaxUvs = 0;
+                int prevMaxNorms = 0;
+                string current_shade_group = null;
 
-                    while ((line = sr.ReadLine()) != null)
+                while ((line = sr.ReadLine()) != null)
+                {
+
+                    //preloading objects
+                    if (line.StartsWith('#'))
+                        continue;
+                    else if (line.StartsWith("o ") || line.StartsWith("g "))
                     {
 
-                        //preloading objects
-                        if (line.StartsWith("#"))
-                            continue;
-                        else if (line.StartsWith("o ") || line.StartsWith("g "))
+                        if (reading_faces)
                         {
+                            reading_faces = false;
+                            prevMaxVerts += obj.Verts.Count;
+                            prevMaxUvs += obj.Uv.Count;
+                            prevMaxNorms += obj.Normals.Count;
 
-                            if (reading_faces)
-                            {
-                                reading_faces = false;
-                                prevMaxVerts += obj.verts.Count;
-                                prevMaxUvs += obj.uv.Count;
-                                prevMaxNorms += obj.normals.Count;
-
-                                objects.Add(obj);
-                                obj = new obj_data();
-                                current_shade_group = null;
-                            }
-
-                            if (String.IsNullOrEmpty(obj.object_name))
-                            {
-                                obj.object_name = line.Substring(2);
-                                Log.Default.Debug("Object {0} named: {1}", objects.Count + 1, obj.object_name);
-                            }
+                            objects.Add(obj);
+                            obj = new Obj_data();
+                            current_shade_group = null;
                         }
-                        else if (line.StartsWith("usemtl "))
+
+                        if (String.IsNullOrEmpty(obj.Object_name))
                         {
-                            obj.material_name = line.Substring(7);
-                        }
-                        else if (line.StartsWith("v "))
-                        {
-
-                            if (reading_faces)
-                            {
-                                reading_faces = false;
-                                prevMaxVerts += obj.verts.Count;
-                                prevMaxUvs += obj.uv.Count;
-                                prevMaxNorms += obj.normals.Count;
-
-                                objects.Add(obj);
-                                obj = new obj_data();
-                            }
-
-                            String[] verts = line.Replace("  ", " ").Split(' ');
-                            Vector3 vert = new Vector3();
-                            vert.X = Convert.ToSingle(verts[1], CultureInfo.InvariantCulture);
-                            vert.Y = Convert.ToSingle(verts[2], CultureInfo.InvariantCulture);
-                            vert.Z = Convert.ToSingle(verts[3], CultureInfo.InvariantCulture);
-
-                            obj.verts.Add(vert);
-                        }
-                        else if (line.StartsWith("vt "))
-                        {
-
-                            if (reading_faces)
-                            {
-                                reading_faces = false;
-                                prevMaxVerts += obj.verts.Count;
-                                prevMaxUvs += obj.uv.Count;
-                                prevMaxNorms += obj.normals.Count;
-
-                                objects.Add(obj);
-                                obj = new obj_data();
-                            }
-
-                            String[] uv0 = line.Split(' ');
-                            Vector2 uv = new Vector2();
-                            uv.X = Convert.ToSingle(uv0[1], CultureInfo.InvariantCulture);
-                            uv.Y = Convert.ToSingle(uv0[2], CultureInfo.InvariantCulture);
-
-                            obj.uv.Add(uv);
-                        }
-                        else if (line.StartsWith("vn "))
-                        {
-
-                            if (reading_faces)
-                            {
-                                reading_faces = false;
-                                prevMaxVerts += obj.verts.Count;
-                                prevMaxUvs += obj.uv.Count;
-                                prevMaxNorms += obj.normals.Count;
-
-                                objects.Add(obj);
-                                obj = new obj_data();
-                            }
-
-                            String[] norms = line.Split(' ');
-                            Vector3 norm = new Vector3();
-                            norm.X = Convert.ToSingle(norms[1], CultureInfo.InvariantCulture);
-                            norm.Y = Convert.ToSingle(norms[2], CultureInfo.InvariantCulture);
-                            norm.Z = Convert.ToSingle(norms[3], CultureInfo.InvariantCulture);
-
-                            obj.normals.Add(norm);
-                        }
-                        else if (line.StartsWith("s "))
-                        {
-                            current_shade_group = line.Substring(2);
-                        }
-                        else if (line.StartsWith("f "))
-                        {
-                            reading_faces = true;
-
-                            if (current_shade_group != null)
-                            {
-                                if (obj.shading_groups.ContainsKey(current_shade_group))
-                                    obj.shading_groups[current_shade_group].Add(obj.faces.Count);
-                                else
-                                {
-                                    List<int> newfaces = new List<int>();
-                                    newfaces.Add(obj.faces.Count);
-                                    obj.shading_groups.Add(current_shade_group, newfaces);
-                                }
-                            }
-
-                            String[] faces = line.Substring(2).Split(' ');
-                            for (int x = 0; x < 3; x++)
-                            {
-                                ushort fa = 0, fb = 0, fc = 0;
-                                if (obj.verts.Count > 0)
-                                    fa = (ushort)(Convert.ToUInt16(faces[x].Split('/')[0]) - prevMaxVerts - 1);
-                                if (obj.uv.Count > 0)
-                                    fb = (ushort)(Convert.ToUInt16(faces[x].Split('/')[1]) - prevMaxUvs - 1);
-                                if (obj.normals.Count > 0)
-                                    fc = (ushort)(Convert.ToUInt16(faces[x].Split('/')[2]) - prevMaxNorms - 1);
-                                if (fa < 0 || fb < 0 || fc < 0)
-                                    throw new Exception("What the actual flapjack, something is *VERY* wrong");
-                                obj.faces.Add(new Face(fa, fb, fc));
-                            }
+                            obj.Object_name = line[2..];
+                            Log.Default.Debug("Object {0} named: {1}", objects.Count + 1, obj.Object_name);
                         }
                     }
+                    else if (line.StartsWith("usemtl "))
+                    {
+                        obj.Material_name = line[7..];
+                    }
+                    else if (line.StartsWith("v "))
+                    {
 
-                    if (!objects.Contains(obj))
-                        objects.Add(obj);
+                        if (reading_faces)
+                        {
+                            reading_faces = false;
+                            prevMaxVerts += obj.Verts.Count;
+                            prevMaxUvs += obj.Uv.Count;
+                            prevMaxNorms += obj.Normals.Count;
+
+                            objects.Add(obj);
+                            obj = new Obj_data();
+                        }
+
+                        String[] verts = line.Replace("  ", " ").Split(' ');
+                        Vector3 vert = new()
+                        {
+                            X = Convert.ToSingle(verts[1], CultureInfo.InvariantCulture),
+                            Y = Convert.ToSingle(verts[2], CultureInfo.InvariantCulture),
+                            Z = Convert.ToSingle(verts[3], CultureInfo.InvariantCulture)
+                        };
+
+                        obj.Verts.Add(vert);
+                    }
+                    else if (line.StartsWith("vt "))
+                    {
+
+                        if (reading_faces)
+                        {
+                            reading_faces = false;
+                            prevMaxVerts += obj.Verts.Count;
+                            prevMaxUvs += obj.Uv.Count;
+                            prevMaxNorms += obj.Normals.Count;
+
+                            objects.Add(obj);
+                            obj = new Obj_data();
+                        }
+
+                        String[] uv0 = line.Split(' ');
+                        Vector2 uv = new()
+                        {
+                            X = Convert.ToSingle(uv0[1], CultureInfo.InvariantCulture),
+                            Y = Convert.ToSingle(uv0[2], CultureInfo.InvariantCulture)
+                        };
+
+                        obj.Uv.Add(uv);
+                    }
+                    else if (line.StartsWith("vn "))
+                    {
+
+                        if (reading_faces)
+                        {
+                            reading_faces = false;
+                            prevMaxVerts += obj.Verts.Count;
+                            prevMaxUvs += obj.Uv.Count;
+                            prevMaxNorms += obj.Normals.Count;
+
+                            objects.Add(obj);
+                            obj = new Obj_data();
+                        }
+
+                        String[] norms = line.Split(' ');
+                        Vector3 norm = new()
+                        {
+                            X = Convert.ToSingle(norms[1], CultureInfo.InvariantCulture),
+                            Y = Convert.ToSingle(norms[2], CultureInfo.InvariantCulture),
+                            Z = Convert.ToSingle(norms[3], CultureInfo.InvariantCulture)
+                        };
+
+                        obj.Normals.Add(norm);
+                    }
+                    else if (line.StartsWith("s "))
+                    {
+                        current_shade_group = line[2..];
+                    }
+                    else if (line.StartsWith("f "))
+                    {
+                        reading_faces = true;
+
+                        if (current_shade_group != null)
+                        {
+                            if (obj.Shading_groups.TryGetValue(current_shade_group, out List<int> value))
+                                value.Add(obj.Faces.Count);
+                            else
+                            {
+                                List<int> newfaces = [obj.Faces.Count];
+                                obj.Shading_groups.Add(current_shade_group, newfaces);
+                            }
+                        }
+
+                        String[] faces = line[2..].Split(' ');
+                        for (int x = 0; x < 3; x++)
+                        {
+                            ushort fa = 0, fb = 0, fc = 0;
+                            if (obj.Verts.Count > 0)
+                                fa = (ushort)(Convert.ToUInt16(faces[x].Split('/')[0]) - prevMaxVerts - 1);
+                            if (obj.Uv.Count > 0)
+                                fb = (ushort)(Convert.ToUInt16(faces[x].Split('/')[1]) - prevMaxUvs - 1);
+                            if (obj.Normals.Count > 0)
+                                fc = (ushort)(Convert.ToUInt16(faces[x].Split('/')[2]) - prevMaxNorms - 1);
+                            if (fa < 0 || fb < 0 || fc < 0)
+                                throw new Exception("What the actual flapjack, something is *VERY* wrong");
+                            obj.Faces.Add(new Face(fa, fb, fc));
+                        }
+                    }
                 }
+
+                if (!objects.Contains(obj))
+                    objects.Add(obj);
             }
 
 
             //Read each object
-            foreach (obj_data obj in objects)
+            foreach (Obj_data obj in objects)
             {
                 //One would fix Tatsuto's broken shading here.
 
                 //Locate the proper model
-                var hashname = HashName.FromNumberOrString(obj.object_name);
+                var hashname = HashName.FromNumberOrString(obj.Object_name);
                 Model modelSection = fmd.parsed_sections
                     .Where(i => i.Value is Model mod && hashname.Hash == mod.HashName.Hash)
                     .Select(i => i.Value as Model)
@@ -192,56 +196,51 @@ namespace PD2ModelParser.Importers
                 DieselGeometry geometry_section = passthrough_section.DieselGeometry;
                 Topology topology_section = passthrough_section.Topology;
 
-                AddObject(false, obj,
-                    modelSection, passthrough_section,
-                    geometry_section, topology_section);
+                AddObject(obj, modelSection, geometry_section, topology_section);
             }
 
 
             //Add new objects
             if (addNew)
             {
-                foreach (obj_data obj in toAddObjects)
+                foreach (Obj_data obj in toAddObjects)
                 {
                     //create new Model
-                    Material newMat = new Material(obj.material_name);
+                    Material newMat = new(obj.Material_name);
                     fmd.AddSection(newMat);
-                    MaterialGroup newMatG = new MaterialGroup(newMat);
+                    MaterialGroup newMatG = new(newMat);
                     fmd.AddSection(newMatG);
-                    DieselGeometry newGeom = new DieselGeometry(obj);
+                    DieselGeometry newGeom = new(obj);
                     fmd.AddSection(newGeom);
-                    Topology newTopo = new Topology(obj);
+                    Topology newTopo = new(obj);
                     fmd.AddSection(newTopo);
 
-                    PassthroughGP newPassGP = new PassthroughGP(newGeom, newTopo);
+                    PassthroughGP newPassGP = new(newGeom, newTopo);
                     fmd.AddSection(newPassGP);
-                    TopologyIP newTopoIP = new TopologyIP(newTopo);
+                    TopologyIP newTopoIP = new(newTopo);
                     fmd.AddSection(newTopoIP);
 
-                    Object3D parent = root_point.Invoke(obj.object_name);
-                    Model newModel = new Model(obj, newPassGP, newTopoIP, newMatG, parent);
+                    Object3D parent = root_point.Invoke(obj.Object_name);
+                    Model newModel = new(obj, newPassGP, newTopoIP, newMatG, parent);
                     fmd.AddSection(newModel);
 
-                    AddObject(true, obj,
-                        newModel, newPassGP, newGeom, newTopo);
+                    AddObject(obj, newModel, newGeom, newTopo);
 
                     //Add new sections
                 }
             }
         }
 
-        private static void AddObject(bool is_new, obj_data obj,
-            Model model_data_section, PassthroughGP passthrough_section,
-            DieselGeometry geometry_section, Topology topology_section)
+        private static void AddObject(Obj_data obj, Model model_data_section, DieselGeometry geometry_section, Topology topology_section)
         {
-            List<Face> called_faces = new List<Face>();
-            List<int> duplicate_verts = new List<int>();
-            Dictionary<int, Face> dup_faces = new Dictionary<int, Face>();
+            List<Face> called_faces = [];
+            List<int> duplicate_verts = [];
+            Dictionary<int, Face> dup_faces = [];
 
             bool broken = false;
-            for (int x_f = 0; x_f < obj.faces.Count; x_f++)
+            for (int x_f = 0; x_f < obj.Faces.Count; x_f++)
             {
-                Face f = obj.faces[x_f];
+                Face f = obj.Faces[x_f];
                 broken = false;
 
                 foreach (Face called_f in called_faces)
@@ -258,7 +257,7 @@ namespace PD2ModelParser.Importers
                     called_faces.Add(f);
             }
 
-            Dictionary<int, Face> done_faces = new Dictionary<int, Face>();
+            Dictionary<int, Face> done_faces = [];
 
             foreach (int dupe in duplicate_verts)
             {
@@ -266,7 +265,7 @@ namespace PD2ModelParser.Importers
                 foreach (KeyValuePair<int, Face> pair in done_faces)
                 {
                     Face f = pair.Value;
-                    if (f.a == obj.faces[dupe].a && f.b == obj.faces[dupe].b)
+                    if (f.a == obj.Faces[dupe].a && f.b == obj.Faces[dupe].b)
                     {
                         replacedF = pair.Key;
                     }
@@ -275,24 +274,24 @@ namespace PD2ModelParser.Importers
                 Face new_face;
                 if (replacedF > -1)
                 {
-                    new_face = new Face(obj.faces[replacedF].a, obj.faces[replacedF].b, obj.faces[dupe].c);
+                    new_face = new Face(obj.Faces[replacedF].a, obj.Faces[replacedF].b, obj.Faces[dupe].c);
 
                 }
                 else
                 {
-                    new_face = new Face((ushort)obj.verts.Count, obj.faces[dupe].b, obj.faces[dupe].c);
-                    obj.verts.Add(obj.verts[obj.faces[dupe].a]);
+                    new_face = new Face((ushort)obj.Verts.Count, obj.Faces[dupe].b, obj.Faces[dupe].c);
+                    obj.Verts.Add(obj.Verts[obj.Faces[dupe].a]);
 
-                    done_faces.Add(dupe, obj.faces[dupe]);
+                    done_faces.Add(dupe, obj.Faces[dupe]);
                 }
 
-                obj.faces[dupe] = new_face;
+                obj.Faces[dupe] = new_face;
             }
 
-            Vector3 new_Model_data_bounds_min = new Vector3();// Z (max), X (low), Y (low)
-            Vector3 new_Model_data_bounds_max = new Vector3();// Z (low), X (max), Y (max)
+            Vector3 new_Model_data_bounds_min = new();// Z (max), X (low), Y (low)
+            Vector3 new_Model_data_bounds_max = new();// Z (low), X (max), Y (max)
 
-            foreach (Vector3 vert in obj.verts)
+            foreach (Vector3 vert in obj.Verts)
             {
                 //Z
                 // Note these were previously broken
@@ -317,50 +316,50 @@ namespace PD2ModelParser.Importers
             }
 
             //Arrange UV and Normals
-            List<Vector3> new_arranged_Geometry_normals = new List<Vector3>();
-            List<Vector3> new_arranged_Geometry_unknown20 = new List<Vector3>();
-            List<Vector3> new_arranged_Geometry_unknown21 = new List<Vector3>();
-            List<int> added_uvs = new List<int>();
-            List<int> added_normals = new List<int>();
+            List<Vector3> new_arranged_Geometry_normals = [];
+            List<Vector3> new_arranged_Geometry_unknown20 = [];
+            List<Vector3> new_arranged_Geometry_unknown21 = [];
+            List<int> added_uvs = [];
+            List<int> added_normals = [];
 
-            Vector2[] new_arranged_UV = new Vector2[obj.verts.Count];
+            Vector2[] new_arranged_UV = new Vector2[obj.Verts.Count];
             for (int x = 0; x < new_arranged_UV.Length; x++)
                 new_arranged_UV[x] = new Vector2(100f, 100f);
-            Vector2 sentinel = new Vector2(100f, 100f);
-            Vector3[] new_arranged_Normals = new Vector3[obj.verts.Count];
+            Vector2 sentinel = new(100f, 100f);
+            Vector3[] new_arranged_Normals = new Vector3[obj.Verts.Count];
             for (int x = 0; x < new_arranged_Normals.Length; x++)
                 new_arranged_Normals[x] = new Vector3(0f, 0f, 0f);
-            Vector3[] new_arranged_unknown20 = new Vector3[obj.verts.Count];
-            Vector3[] new_arranged_unknown21 = new Vector3[obj.verts.Count];
+            Vector3[] new_arranged_unknown20 = new Vector3[obj.Verts.Count];
+            Vector3[] new_arranged_unknown21 = new Vector3[obj.Verts.Count];
 
-            List<Face> new_faces = new List<Face>();
+            List<Face> new_faces = [];
 
-            for (int fcount = 0; fcount < obj.faces.Count; fcount += 3)
+            for (int fcount = 0; fcount < obj.Faces.Count; fcount += 3)
             {
-                Face f1 = obj.faces[fcount + 0];
-                Face f2 = obj.faces[fcount + 1];
-                Face f3 = obj.faces[fcount + 2];
+                Face f1 = obj.Faces[fcount + 0];
+                Face f2 = obj.Faces[fcount + 1];
+                Face f3 = obj.Faces[fcount + 2];
 
                 //UV
-                if (obj.uv.Count > 0)
+                if (obj.Uv.Count > 0)
                 {
                     if (new_arranged_UV[f1.a].Equals(sentinel))
-                        new_arranged_UV[f1.a] = obj.uv[f1.b];
+                        new_arranged_UV[f1.a] = obj.Uv[f1.b];
                     if (new_arranged_UV[f2.a].Equals(sentinel))
-                        new_arranged_UV[f2.a] = obj.uv[f2.b];
+                        new_arranged_UV[f2.a] = obj.Uv[f2.b];
                     if (new_arranged_UV[f3.a].Equals(sentinel))
-                        new_arranged_UV[f3.a] = obj.uv[f3.b];
+                        new_arranged_UV[f3.a] = obj.Uv[f3.b];
                 }
 
                 //normal
-                if (obj.normals.Count > 0)
+                if (obj.Normals.Count > 0)
                 {
-                    new_arranged_Normals[f1.a] = obj.normals[f1.c];
-                    new_arranged_Normals[f2.a] = obj.normals[f2.c];
-                    new_arranged_Normals[f3.a] = obj.normals[f3.c];
+                    new_arranged_Normals[f1.a] = obj.Normals[f1.c];
+                    new_arranged_Normals[f2.a] = obj.Normals[f2.c];
+                    new_arranged_Normals[f3.a] = obj.Normals[f3.c];
                 }
 
-                Face new_f = new Face(f1.a, f2.a, f3.a);
+                Face new_f = new(f1.a, f2.a, f3.a);
 
                 new_faces.Add(new_f);
             }
@@ -368,38 +367,40 @@ namespace PD2ModelParser.Importers
             for (int x = 0; x < new_arranged_Normals.Length; x++)
                 new_arranged_Normals[x] = Vector3.Normalize(new_arranged_Normals[x]);
 
-            List<Vector3> obj_verts = obj.verts;
+            List<Vector3> obj_verts = obj.Verts;
             ComputeTangentBasis(ref new_faces, ref obj_verts, ref new_arranged_UV, ref new_arranged_Normals, ref new_arranged_unknown20, ref new_arranged_unknown21);
 
-            List<RenderAtom> new_Model_items2 = new List<RenderAtom>();
+            List<RenderAtom> new_Model_items2 = [];
 
             foreach (RenderAtom modelitem in model_data_section.RenderAtoms)
             {
-                RenderAtom new_model_item = new RenderAtom();
-                new_model_item.BaseVertex = modelitem.BaseVertex;
-                new_model_item.TriangleCount = (uint)new_faces.Count;
-                new_model_item.BaseIndex = modelitem.BaseIndex;
-                new_model_item.GeometrySliceLength = (uint)obj.verts.Count;
-                new_model_item.MaterialId = modelitem.MaterialId;
+                RenderAtom new_model_item = new()
+                {
+                    BaseVertex = modelitem.BaseVertex,
+                    TriangleCount = (uint)new_faces.Count,
+                    BaseIndex = modelitem.BaseIndex,
+                    GeometrySliceLength = (uint)obj.Verts.Count,
+                    MaterialId = modelitem.MaterialId
+                };
 
                 new_Model_items2.Add(new_model_item);
             }
 
             model_data_section.RenderAtoms = new_Model_items2;
 
-            if (model_data_section.version != 6)
+            if (model_data_section.Version != 6)
             {
                 model_data_section.BoundsMin = new_Model_data_bounds_min;
                 model_data_section.BoundsMax = new_Model_data_bounds_max;
-                model_data_section.BoundingRadius = obj.verts.Select(i => i.Length()).Max();
+                model_data_section.BoundingRadius = obj.Verts.Select(i => i.Length()).Max();
             }
 
-            geometry_section.vert_count = (uint)obj.verts.Count;
-            geometry_section.verts = obj.verts;
-            geometry_section.normals = new_arranged_Normals.ToList();
-            geometry_section.UVs[0] = new_arranged_UV.ToList();
-            geometry_section.binormals = new_arranged_unknown20.ToList();
-            geometry_section.tangents = new_arranged_unknown21.ToList();
+            geometry_section.vert_count = (uint)obj.Verts.Count;
+            geometry_section.verts = obj.Verts;
+            geometry_section.normals = [.. new_arranged_Normals];
+            geometry_section.UVs[0] = [.. new_arranged_UV];
+            geometry_section.binormals = [.. new_arranged_unknown20];
+            geometry_section.tangents = [.. new_arranged_unknown21];
 
             topology_section.facelist = new_faces;
         }
@@ -408,7 +409,7 @@ namespace PD2ModelParser.Importers
         {
             //Taken from various sources online. Search up Normal Vector Tangent calculation.
 
-            List<ushort> parsed = new List<ushort>();
+            List<ushort> parsed = [];
 
             foreach (Face f in faces)
             {
@@ -461,47 +462,47 @@ namespace PD2ModelParser.Importers
             Log.Default.Info("Importing new obj with file for UV patterns: {0}", filepath);
 
             //Preload the .obj
-            List<obj_data> objects = new List<obj_data>();
+            List<Obj_data> objects = [];
 
             try
             {
-                using (FileStream fs = new FileStream(filepath, FileMode.Open, FileAccess.Read))
+                using (FileStream fs = new(filepath, FileMode.Open, FileAccess.Read))
                 {
-                    using (StreamReader sr = new StreamReader(fs))
+                    using StreamReader sr = new(fs);
+                    string line;
+                    Obj_data obj = new();
+                    bool reading_faces = false;
+                    int prevMaxVerts = 0;
+                    int prevMaxUvs = 0;
+                    int prevMaxNorms = 0;
+
+
+                    while ((line = sr.ReadLine()) != null)
                     {
-                        string line;
-                        obj_data obj = new obj_data();
-                        bool reading_faces = false;
-                        int prevMaxVerts = 0;
-                        int prevMaxUvs = 0;
-                        int prevMaxNorms = 0;
 
+                        //preloading objects
+                        if (!line.StartsWith('#'))
 
-                        while ((line = sr.ReadLine()) != null)
-                        {
-
-                            //preloading objects
-                            if (line.StartsWith("#"))
-                                continue;
-                            else if (line.StartsWith("o ") || line.StartsWith("g "))
+						{
+                            if (line.StartsWith("o ") || line.StartsWith("g "))
                             {
 
                                 if (reading_faces)
                                 {
                                     reading_faces = false;
-                                    prevMaxVerts += obj.verts.Count;
-                                    prevMaxUvs += obj.uv.Count;
-                                    prevMaxNorms += obj.normals.Count;
+                                    prevMaxVerts += obj.Verts.Count;
+                                    prevMaxUvs += obj.Uv.Count;
+                                    prevMaxNorms += obj.Normals.Count;
 
                                     objects.Add(obj);
-                                    obj = new obj_data();
+                                    obj = new Obj_data();
                                 }
 
-                                obj.object_name = line.Substring(2);
+                                obj.Object_name = line[2..];
                             }
                             else if (line.StartsWith("usemtl "))
                             {
-                                obj.material_name = line.Substring(2);
+                                obj.Material_name = line[2..];
                             }
                             else if (line.StartsWith("v "))
                             {
@@ -509,21 +510,23 @@ namespace PD2ModelParser.Importers
                                 if (reading_faces)
                                 {
                                     reading_faces = false;
-                                    prevMaxVerts += obj.verts.Count;
-                                    prevMaxUvs += obj.uv.Count;
-                                    prevMaxNorms += obj.normals.Count;
+                                    prevMaxVerts += obj.Verts.Count;
+                                    prevMaxUvs += obj.Uv.Count;
+                                    prevMaxNorms += obj.Normals.Count;
 
                                     objects.Add(obj);
-                                    obj = new obj_data();
+                                    obj = new Obj_data();
                                 }
 
                                 String[] verts = line.Replace("  ", " ").Split(' ');
-                                Vector3 vert = new Vector3();
-                                vert.X = Convert.ToSingle(verts[1], CultureInfo.InvariantCulture);
-                                vert.Y = Convert.ToSingle(verts[2], CultureInfo.InvariantCulture);
-                                vert.Z = Convert.ToSingle(verts[3], CultureInfo.InvariantCulture);
+                                Vector3 vert = new()
+                                {
+                                    X = Convert.ToSingle(verts[1], CultureInfo.InvariantCulture),
+                                    Y = Convert.ToSingle(verts[2], CultureInfo.InvariantCulture),
+                                    Z = Convert.ToSingle(verts[3], CultureInfo.InvariantCulture)
+                                };
 
-                                obj.verts.Add(vert);
+                                obj.Verts.Add(vert);
                             }
                             else if (line.StartsWith("vt "))
                             {
@@ -531,20 +534,22 @@ namespace PD2ModelParser.Importers
                                 if (reading_faces)
                                 {
                                     reading_faces = false;
-                                    prevMaxVerts += obj.verts.Count;
-                                    prevMaxUvs += obj.uv.Count;
-                                    prevMaxNorms += obj.normals.Count;
+                                    prevMaxVerts += obj.Verts.Count;
+                                    prevMaxUvs += obj.Uv.Count;
+                                    prevMaxNorms += obj.Normals.Count;
 
                                     objects.Add(obj);
-                                    obj = new obj_data();
+                                    obj = new Obj_data();
                                 }
 
                                 String[] uv0 = line.Split(' ');
-                                Vector2 uv = new Vector2();
-                                uv.X = Convert.ToSingle(uv0[1], CultureInfo.InvariantCulture);
-                                uv.Y = Convert.ToSingle(uv0[2], CultureInfo.InvariantCulture);
+                                Vector2 uv = new()
+                                {
+                                    X = Convert.ToSingle(uv0[1], CultureInfo.InvariantCulture),
+                                    Y = Convert.ToSingle(uv0[2], CultureInfo.InvariantCulture)
+                                };
 
-                                obj.uv.Add(uv);
+                                obj.Uv.Add(uv);
                             }
                             else if (line.StartsWith("vn "))
                             {
@@ -552,53 +557,55 @@ namespace PD2ModelParser.Importers
                                 if (reading_faces)
                                 {
                                     reading_faces = false;
-                                    prevMaxVerts += obj.verts.Count;
-                                    prevMaxUvs += obj.uv.Count;
-                                    prevMaxNorms += obj.normals.Count;
+                                    prevMaxVerts += obj.Verts.Count;
+                                    prevMaxUvs += obj.Uv.Count;
+                                    prevMaxNorms += obj.Normals.Count;
 
                                     objects.Add(obj);
-                                    obj = new obj_data();
+                                    obj = new Obj_data();
                                 }
 
                                 String[] norms = line.Split(' ');
-                                Vector3 norm = new Vector3();
-                                norm.X = Convert.ToSingle(norms[1], CultureInfo.InvariantCulture);
-                                norm.Y = Convert.ToSingle(norms[2], CultureInfo.InvariantCulture);
-                                norm.Z = Convert.ToSingle(norms[3], CultureInfo.InvariantCulture);
+                                Vector3 norm = new()
+                                {
+                                    X = Convert.ToSingle(norms[1], CultureInfo.InvariantCulture),
+                                    Y = Convert.ToSingle(norms[2], CultureInfo.InvariantCulture),
+                                    Z = Convert.ToSingle(norms[3], CultureInfo.InvariantCulture)
+                                };
 
-                                obj.normals.Add(norm);
+                                obj.Normals.Add(norm);
                             }
                             else if (line.StartsWith("f "))
                             {
                                 reading_faces = true;
-                                String[] faces = line.Substring(2).Split(' ');
+                                String[] faces = line[2..].Split(' ');
                                 for (int x = 0; x < 3; x++)
                                 {
                                     ushort fa = 0, fb = 0, fc = 0;
-                                    if (obj.verts.Count > 0)
+                                    if (obj.Verts.Count > 0)
                                         fa = (ushort)(Convert.ToUInt16(faces[x].Split('/')[0]) - prevMaxVerts - 1);
-                                    if (obj.uv.Count > 0)
+                                    if (obj.Uv.Count > 0)
                                         fb = (ushort)(Convert.ToUInt16(faces[x].Split('/')[1]) - prevMaxUvs - 1);
-                                    if (obj.normals.Count > 0)
+                                    if (obj.Normals.Count > 0)
                                         fc = (ushort)(Convert.ToUInt16(faces[x].Split('/')[2]) - prevMaxNorms - 1);
                                     if (fa < 0 || fb < 0 || fc < 0)
                                         throw new Exception("What the actual flapjack, something is *VERY* wrong");
-                                    obj.faces.Add(new Face(fa, fb, fc));
+                                    obj.Faces.Add(new Face(fa, fb, fc));
                                 }
 
                             }
                         }
-
-                        if (!objects.Contains(obj))
-                            objects.Add(obj);
-
+                        else continue;
                     }
+
+                    if (!objects.Contains(obj))
+                        objects.Add(obj);
                 }
 
 
 
                 //Read each object
-                foreach (obj_data obj in objects)
+                foreach (Obj_data obj in objects)
                 {
 
                     //Locate the proper model
@@ -608,17 +615,16 @@ namespace PD2ModelParser.Importers
                         if (modelSectionid != 0)
                             break;
 
-                        if (pair.Value is Model)
+                        if (pair.Value is Model model)
                         {
-                            UInt64 tryp;
-                            if (UInt64.TryParse(obj.object_name, out tryp))
+                            if (UInt64.TryParse(obj.Object_name, out ulong tryp))
                             {
-                                if (tryp == ((Model)pair.Value).HashName.Hash)
+                                if (tryp == model.HashName.Hash)
                                     modelSectionid = pair.Key;
                             }
                             else
                             {
-                                if (Hash64.HashString(obj.object_name) == ((Model)pair.Value).HashName.Hash)
+                                if (Hash64.HashString(obj.Object_name) == model.HashName.Hash)
                                     modelSectionid = pair.Key;
                             }
                         }
@@ -637,34 +643,34 @@ namespace PD2ModelParser.Importers
                     Vector2[] new_arranged_UV = new Vector2[geometry_section.verts.Count];
                     for (int x = 0; x < new_arranged_UV.Length; x++)
                         new_arranged_UV[x] = new Vector2(100f, 100f);
-                    Vector2 sentinel = new Vector2(100f, 100f);
+                    Vector2 sentinel = new(100f, 100f);
 
-                    if (topology_section.facelist.Count != obj.faces.Count / 3)
+                    if (topology_section.facelist.Count != obj.Faces.Count / 3)
                         return false;
 
                     for (int fcount = 0; fcount < topology_section.facelist.Count; fcount += 3)
                     {
-                        Face f1 = obj.faces[fcount + 0];
-                        Face f2 = obj.faces[fcount + 1];
-                        Face f3 = obj.faces[fcount + 2];
+                        Face f1 = obj.Faces[fcount + 0];
+                        Face f2 = obj.Faces[fcount + 1];
+                        Face f3 = obj.Faces[fcount + 2];
 
                         //UV
-                        if (obj.uv.Count > 0)
+                        if (obj.Uv.Count > 0)
                         {
                             if (new_arranged_UV[topology_section.facelist[fcount / 3 + 0].a].Equals(sentinel))
-                                new_arranged_UV[topology_section.facelist[fcount / 3 + 0].a] = obj.uv[f1.b];
+                                new_arranged_UV[topology_section.facelist[fcount / 3 + 0].a] = obj.Uv[f1.b];
                             if (new_arranged_UV[topology_section.facelist[fcount / 3 + 0].b].Equals(sentinel))
-                                new_arranged_UV[topology_section.facelist[fcount / 3 + 0].b] = obj.uv[f2.b];
+                                new_arranged_UV[topology_section.facelist[fcount / 3 + 0].b] = obj.Uv[f2.b];
                             if (new_arranged_UV[topology_section.facelist[fcount / 3 + 0].c].Equals(sentinel))
-                                new_arranged_UV[topology_section.facelist[fcount / 3 + 0].c] = obj.uv[f3.b];
+                                new_arranged_UV[topology_section.facelist[fcount / 3 + 0].c] = obj.Uv[f3.b];
                         }
                     }
 
 
 
-                    geometry_section.UVs[1] = new_arranged_UV.ToList();
+                    geometry_section.UVs[1] = [.. new_arranged_UV];
 
-                    passthrough_section.DieselGeometry.UVs[1] = new_arranged_UV.ToList();
+                    passthrough_section.DieselGeometry.UVs[1] = [.. new_arranged_UV];
                 }
             }
             catch (Exception exc)

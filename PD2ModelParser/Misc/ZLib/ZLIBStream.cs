@@ -13,12 +13,12 @@ namespace PD2ModelParser.Misc.ZLib
     public sealed class ZLIBStream : Stream
     {
         #region "Variables globales"
-        private CompressionMode mCompressionMode = CompressionMode.Compress;
-        private CompressionLevel mCompressionLevel = CompressionLevel.NoCompression;
-        private bool mLeaveOpen = false;
-        private Adler32 adler32 = new Adler32();
+        private readonly CompressionMode mCompressionMode = CompressionMode.Compress;
+        private readonly CompressionLevel mCompressionLevel = CompressionLevel.NoCompression;
+        private readonly bool mLeaveOpen = false;
+        private readonly Adler32 adler32 = new();
         private DeflateStream mDeflateStream;
-        private Stream mRawStream;
+        private readonly Stream mRawStream;
         private bool mClosed = false;
         private byte[] mCRC = null;
         #endregion
@@ -112,8 +112,7 @@ namespace PD2ModelParser.Misc.ZLib
         #region "Metodos sobreescritos"
         public override int ReadByte()
         {
-            int result = 0;
-
+            int result;
             if (this.CanRead == true)
             {
                 result = this.mDeflateStream.ReadByte();
@@ -138,8 +137,7 @@ namespace PD2ModelParser.Misc.ZLib
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            int result = 0;
-
+            int result;
             if (this.CanRead == true)
             {
                 result = this.mDeflateStream.Read(buffer, offset, count);
@@ -254,8 +252,6 @@ namespace PD2ModelParser.Misc.ZLib
         public static bool IsZLibStream(Stream stream)
         {
             bool bResult = false;
-            int CMF = 0;
-            int Flag = 0;
             ZLibHeader header;
 
             //Comprobamos si la secuencia esta en la posición 0, de no ser así, lanzamos una excepción
@@ -267,8 +263,8 @@ namespace PD2ModelParser.Misc.ZLib
             //Comprobamos si podemos realizar la lectura de los dos bytes que conforman la cabecera
             if (stream.CanRead == true)
             {
-                CMF = stream.ReadByte();
-                Flag = stream.ReadByte();
+                int CMF = stream.ReadByte();
+                int Flag = stream.ReadByte();
                 try
                 {
                     header = ZLibHeader.DecodeHeader(CMF, Flag);
@@ -341,12 +337,13 @@ namespace PD2ModelParser.Misc.ZLib
             byte[] bytesHeader;
 
             //Establecemos la configuración de la cabecera
-            ZLibHeader header = new ZLibHeader();
+            ZLibHeader header = new()
+            {
+                CompressionMethod = 8, //Deflate
+                CompressionInfo = 7,
 
-            header.CompressionMethod = 8; //Deflate
-            header.CompressionInfo = 7;
-
-            header.FDict = false; //Sin diccionario
+                FDict = false //Sin diccionario
+            };
             switch (this.mCompressionLevel)
             {
                 case CompressionLevel.NoCompression:

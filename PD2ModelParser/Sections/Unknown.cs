@@ -3,9 +3,9 @@ using System.IO;
 
 namespace PD2ModelParser.Sections
 {
-    class Unknown : AbstractSection, ISection
+    internal class Unknown : AbstractSection, ISection
     {
-        UInt32 tag;
+        private readonly UInt32 tag;
 
         public override uint TypeCode => this.tag;
 

@@ -3,6 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
 	<TargetFramework>net10.0-windows</TargetFramework>
+	<LangVersion>preview</LangVersion>
 	<SupportedOSPlatformVersion>6.1</SupportedOSPlatformVersion>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

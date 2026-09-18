@@ -5,12 +5,12 @@ using System.Numerics;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
-
+using PD2ModelParser.Importers;
 using PD2ModelParser.Sections;
 
 namespace PD2ModelParser.Modelscript
 {
-    class DumpSkins : ScriptItem
+    internal class DumpSkins : ScriptItem
     {
         [Required] public string File { get; set; }
 
@@ -18,7 +18,7 @@ namespace PD2ModelParser.Modelscript
         {
             var filepath = state.ResolvePath(File);
 
-            state.Log.Status("Writing skinning script to {0}", filepath);
+            ScriptState.Log.Status("Writing skinning script to {0}", filepath);
 
             var xws = new XmlWriterSettings()
             {
@@ -41,10 +41,10 @@ namespace PD2ModelParser.Modelscript
 
                 xw.WriteStartElement("global_skin_transform");
                 xw.WriteWhitespace("\n");
-                xw.WriteString(GetMatrixString(sb.global_skin_transform));
+                xw.WriteString(GetMatrixString(sb.Global_skin_transform));
                 xw.WriteEndElement();
 
-                foreach (var bmi in sb.bone_mappings)
+                foreach (var bmi in sb.Bone_mappings)
                 {
                     xw.WriteStartElement("bone_mapping");
                     xw.WriteWhitespace("\n");
@@ -53,12 +53,12 @@ namespace PD2ModelParser.Modelscript
                     xw.WriteEndElement();
                 }
 
-                for(var i = 0; i < sb.rotations.Count; i++)
+                for(var i = 0; i < sb.Rotations.Count; i++)
                 {
                     xw.WriteStartElement("joint");
                     xw.WriteAttributeString("object", sb.Objects[i].Name);
                     xw.WriteWhitespace("\n");
-                    xw.WriteString(GetMatrixString(sb.rotations[i]));
+                    xw.WriteString(GetMatrixString(sb.Rotations[i]));
                     xw.WriteEndElement();
                 } 
 
@@ -68,7 +68,7 @@ namespace PD2ModelParser.Modelscript
             xw.WriteEndElement();
         }
 
-        string GetMatrixString(Matrix4x4 ma)
+        private static string GetMatrixString(Matrix4x4 ma)
         {
             var sb = new StringBuilder(4 * (4 * 17 + 2));
             for (var i = 0; i < 16; i++)
@@ -77,18 +77,18 @@ namespace PD2ModelParser.Modelscript
                 if (Math.Abs(value) < 0.000001)
                     value = 0;
                 sb.AppendFormat("  {0,14:g5}{1}", value, i % 4 == 3 ? Environment.NewLine : "");
-            }
+    }
             return sb.ToString();
         }
     }
 
-    class Skin : IScriptItem
+    internal class Skin : IScriptItem
     {
-        public List<string> Objects { get; set; } = new List<string>();
+        public List<string> Objects { get; set; } = [];
         public string ProbablyRootBone { get; set; }
-        public List<List<int>> BoneMappings { get; set; } = new List<List<int>>();
+        public List<List<int>> BoneMappings { get; set; } = [];
         public Matrix4x4 GlobalSkinTransform { get; set; }
-        public List<(string, Matrix4x4)> Joints { get; set; } = new List<(string, Matrix4x4)>();
+        public List<(string, Matrix4x4)> Joints { get; set; } = [];
 
         public void ParseXml(XElement element)
         {
@@ -103,10 +103,9 @@ namespace PD2ModelParser.Modelscript
                         GlobalSkinTransform = ScriptXml.MatrixFromText(child);
                         break;
                     case "bone_mapping":
-                        BoneMappings.Add(child.Value
+                        BoneMappings.Add([.. child.Value
                             .Split(ScriptXml.ValueSeparators, StringSplitOptions.RemoveEmptyEntries)
-                            .Select(i => int.Parse(i))
-                            .ToList());
+                            .Select(i => int.Parse(i))]);
                         break;
                     case "joint":
                         var bone = ScriptXml.RequiredAttr(child, "object");
@@ -117,9 +116,9 @@ namespace PD2ModelParser.Modelscript
             }
         }
 
-        public void Execute(ScriptState state)
+        public void Execute(ScriptState state, Exception argumentNullException)
         {
-            if (Objects.Count == 0) throw new ArgumentNullException("Must supply an object name to use <skin>.", "Objects");
+            if (Objects.Count == 0) throw argumentNullException;
             var models = new List<Model>();
             var modelnames = new HashSet<string>(Objects);
             foreach (var m in state.Data.SectionsOfType<Model>())
@@ -133,10 +132,7 @@ namespace PD2ModelParser.Modelscript
             if(modelnames.Count > 0)
                 throw new Exception($"One or more models not found: {string.Join(", ", modelnames)}");
 
-            var rootbone = state.Data.SectionsOfType<Object3D>().FirstOrDefault(i => i.Name == ProbablyRootBone);
-            if (rootbone == null)
-                throw new Exception($"Could not find root bone '{ProbablyRootBone}'");
-
+            var rootbone = state.Data.SectionsOfType<Object3D>().FirstOrDefault(i => i.Name == ProbablyRootBone) ?? throw new Exception($"Could not find root bone '{ProbablyRootBone}'");
             var resolvedJoints = new List<(Object3D bone, Matrix4x4 transform)>();
             var objectsByName = state.Data.SectionsOfType<Object3D>().ToDictionary(i => i.Name, i => i);
             var notfound = new List<string>();
@@ -154,7 +150,7 @@ namespace PD2ModelParser.Modelscript
             if (notfound.Count > 0)
                 throw new Exception($"One or more joints not found: {string.Join(", ", notfound.Select(i => "\"" + i + "\""))}");
 
-            state.Log.Status("Add skinning to {0}", string.Join(", ", Objects.Select(i => "\"" + i + "\"")));
+            ScriptState.Log.Status("Add skinning to {0}", string.Join(", ", Objects.Select(i => "\"" + i + "\"")));
 
             var sb = new SkinBones();
             state.Data.AddSection(sb);
@@ -163,28 +159,33 @@ namespace PD2ModelParser.Modelscript
             {
                 var bmi = new BoneMappingItem();
                 bmi.bones.AddRange(bl.Select(i => (uint)i));
-                sb.bone_mappings.Add(bmi);
+                sb.Bone_mappings.Add(bmi);
             }
-            sb.global_skin_transform = this.GlobalSkinTransform;
+            sb.Global_skin_transform = this.GlobalSkinTransform;
             sb.Objects.AddRange(resolvedJoints.Select(i => i.bone));
-            sb.rotations.AddRange(resolvedJoints.Select(i => i.transform));
+            sb.Rotations.AddRange(resolvedJoints.Select(i => i.transform));
 
             foreach(var m in models)
             {
                 m.SkinBones = sb;
             }
         }
+
+        public void Execute(ScriptState state)
+        {
+            throw new NotImplementedException();
+        }
     }
 
-    class RemoveSkin : ScriptItem
+    internal class RemoveSkin : ScriptItem
     {
-        string Model { get; set; }
+        private string Model { get; set; }
 
         public override void Execute(ScriptState state)
         {
             if (Model == null)
             {
-                state.Log.Status("Removing all skinning data");
+                ScriptState.Log.Status("Removing all skinning data");
                 foreach (var model in state.Data.SectionsOfType<Model>())
                 {
                     model.SkinBones = null;
@@ -192,8 +193,8 @@ namespace PD2ModelParser.Modelscript
             }
             else
             {
-                var obj = state.Data.SectionsOfType<Model>().FirstOrDefault(i => i.Name.ToLowerInvariant() == Model.ToLowerInvariant());
-                state.Log.Status("Clear skinning of \"{0}\"", Model);
+                var obj = state.Data.SectionsOfType<Model>().FirstOrDefault(i => i.Name.Equals(Model, StringComparison.InvariantCultureIgnoreCase));
+                ScriptState.Log.Status("Clear skinning of \"{0}\"", Model);
                 obj.SkinBones = null;
             }
 
@@ -217,7 +218,7 @@ namespace PD2ModelParser.Modelscript
      * in a way that works fine in game with animations exported from Blender, but breaks any
      * animations made on the in-built model.
      */
-    class PortRigging : ScriptItem
+    internal class PortRigging : ScriptItem
     {
         [Required] public string File { get; set; }
         public bool SetModelParents { get; set; } = true;
@@ -225,14 +226,14 @@ namespace PD2ModelParser.Modelscript
         public override void Execute(ScriptState state)
         {
             string resolvedPath = state.ResolvePath(File);
-            state.Log.Status($"Loading model (for rigging port) from {resolvedPath}");
+            ScriptState.Log.Status($"Loading model (for rigging port) from {resolvedPath}");
             FullModelData srcData = ModelReader.Open(resolvedPath);
 
             // Find all the objects and particularly those shared across both models
             Dictionary<string, Object3D> destObjects = FindObjects(state.Data);
             Dictionary<string, Object3D> srcObjects = FindObjects(srcData);
 
-            HashSet<string> sharedObjects = new HashSet<string>(destObjects.Keys);
+            HashSet<string> sharedObjects = [.. destObjects.Keys];
             sharedObjects.IntersectWith(srcObjects.Keys);
 
             // Go through every object that's common and copy across it's transform
@@ -269,21 +270,21 @@ namespace PD2ModelParser.Modelscript
 
                 // We absolutely need to copy over the global skin transform. I'm not certain about the root
                 // bone, but that's probably necessary too.
-                destModel.SkinBones.global_skin_transform = srcModel.SkinBones.global_skin_transform;
+                destModel.SkinBones.Global_skin_transform = srcModel.SkinBones.Global_skin_transform;
                 destModel.SkinBones.ProbablyRootBone = destObjects[srcModel.SkinBones.ProbablyRootBone.HashName.String];
 
                 // In case the src and dest models have the bones in a different order, build a lookup
                 // table to find the ID (and thus inverse bind transform) for a given object from it's
                 // parsed object.
-                Dictionary<Object3D, int> srcIds = new Dictionary<Object3D, int>();
-                for (int i = 0; i < srcModel.SkinBones.count; i++)
+                Dictionary<Object3D, int> srcIds = [];
+                for (int i = 0; i < srcModel.SkinBones.Count; i++)
                 {
                     srcIds[srcModel.SkinBones.Objects[i]] = i;
                 }
 
                 // Go through each bone in the destination, find it's corresponding bone in the source, and
                 // copy the inverse bind transform over.
-                for (int i = 0; i < destModel.SkinBones.count; i++)
+                for (int i = 0; i < destModel.SkinBones.Count; i++)
                 {
                     Object3D destBone = destModel.SkinBones.Objects[i];
                     Object3D srcBone = srcObjects.GetValueOrDefault(destBone.HashName.String, null);
@@ -298,14 +299,14 @@ namespace PD2ModelParser.Modelscript
                     int srcId = srcIds[srcBone];
 
                     // Copy across the inverse bind transform
-                    destModel.SkinBones.rotations[i] = srcModel.SkinBones.rotations[srcId];
+                    destModel.SkinBones.Rotations[i] = srcModel.SkinBones.Rotations[srcId];
                 }
             }
         }
 
-        private Dictionary<string, Object3D> FindObjects(FullModelData data)
+        private static Dictionary<string, Object3D> FindObjects(FullModelData data)
         {
-            Dictionary<string, Object3D> objects = new Dictionary<string, Object3D>();
+            Dictionary<string, Object3D> objects = [];
             foreach (ISection section in data.parsed_sections.Values)
             {
                 if (section is Object3D obj)

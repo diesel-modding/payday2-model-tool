@@ -9,7 +9,7 @@ using D = PD2ModelParser.Sections;
 namespace PD2ModelParser.Modelscript
 {
     [Flags]
-    enum PropertyMergeFlags
+    internal enum PropertyMergeFlags
     {
         None = 0,
         NewObjects = 0x1,
@@ -23,7 +23,7 @@ namespace PD2ModelParser.Modelscript
         Everything = NewObjects|Parents|Materials|Transform|Animations,
     }
 
-    enum ModelDataMergeMode
+    internal enum ModelDataMergeMode
     {
         None,
         Recreate,
@@ -32,14 +32,13 @@ namespace PD2ModelParser.Modelscript
     }
 
     [Flags]
-    enum ModelAttributesMergeFlags
+    internal enum ModelAttributesMergeFlags
     {
         None = 0,
         Indices = 0x01,
         Positions = 0x02,
         Normals = 0x04,
         Colors = 0x08,
-        Colours = 0x08,
         Weights = 0x10,
         UV0 = 0x20,
         UV1 = 0x40,
@@ -54,13 +53,13 @@ namespace PD2ModelParser.Modelscript
         Vertices = Positions | Normals | Colors | Weights | UVs
     }
 
-    class Merge : ScriptItem, IScriptItem 
+    internal class Merge : ScriptItem, IScriptItem 
     {
         [XmlAttribute("property-merge")] public PropertyMergeFlags PropertyMerge { get; set; } = PropertyMergeFlags.Everything;
         [XmlAttribute("model-merge")] public ModelDataMergeMode ModelMergeMode { get; set; } = ModelDataMergeMode.Overwrite;
         [XmlAttribute("model-attributes")] public ModelAttributesMergeFlags AttributeMergeMode { get; set; } = ModelAttributesMergeFlags.Vertices;
-        [XmlAttribute("remap-uv")] public int[] RemapUV { get; set; } = new int[0];
-        [NotAttribute] public IList<IScriptItem> Script { get; set; } = new List<IScriptItem>();
+        [XmlAttribute("remap-uv")] public int[] RemapUV { get; set; } = [];
+        [NotAttribute] public IList<IScriptItem> Script { get; set; } = [];
 
         public override void ParseXml(XElement elem)
         {
@@ -80,16 +79,17 @@ namespace PD2ModelParser.Modelscript
             }
         }
 
-        private void MergeObject(FullModelData targetData, D.Object3D sourceObject)
+        private static void MergeObject(FullModelData targetData, D.Object3D sourceObject)
         {
-               
+            _ = targetData;
+            _ = sourceObject;
         }
     }
 
-    class TransplantAttributes : ScriptItem, IScriptItem
+    internal class TransplantAttributes : ScriptItem, IScriptItem
     {
-        [XmlAttribute("models")] public string[] Models { get; set; } = new string[0];
-        [NotAttribute] public IList<IScriptItem> Script { get; set; } = new List<IScriptItem>();
+        [XmlAttribute("models")] public string[] Models { get; set; } = [];
+        [NotAttribute] public IList<IScriptItem> Script { get; set; } = [];
 
         public override void ParseXml(XElement elem)
         {
@@ -99,14 +99,14 @@ namespace PD2ModelParser.Modelscript
 
         public override void Execute(ScriptState state)
         {
-            state.Log.Status("Run donor script");
+            ScriptState.Log.Status("Run donor script");
             var donor = Modelscript.Script.ExecuteItems(Script, state.WorkDir);
 
             foreach(var name in Models)
             {
-                state.Log.Status("Transfer attributes for {0}", name);
-                var src_obj = GetModel(state, donor, name, "Source");
-                var dst_obj = GetModel(state, state.Data, name, "Destination");
+                ScriptState.Log.Status("Transfer attributes for {0}", name);
+                var src_obj = GetModel(donor, name, "Source");
+                var dst_obj = GetModel(state.Data, name, "Destination");
 
                 var src_geo = src_obj.PassthroughGP.DieselGeometry;
                 var dst_geo = dst_obj.PassthroughGP.DieselGeometry;
@@ -135,27 +135,26 @@ namespace PD2ModelParser.Modelscript
             }
         }
 
-        private void TransplantAttribute<T>(List<T> src, List<T> dest)
+        private static void TransplantAttribute<T>(List<T> src, List<T> dest)
         {
             dest.Clear();
             dest.Capacity = src.Capacity;
             dest.AddRange(src);
         }
 
-        private D.Model GetModel(ScriptState state, FullModelData fmd, string name, string reponame)
+        private static D.Model GetModel(FullModelData fmd, string name, string reponame)
         {
-            var mod = fmd.GetObject3DByHash(HashName.FromNumberOrString(name)) as D.Model;
-            if(mod == null)
+            if (fmd.GetObject3DByHash(HashName.FromNumberOrString(name)) is not D.Model mod)
             {
                 string message = string.Format("{1} object {0} is nonexistent or not a model", name, reponame);
-                state.Log.Error(message);
+                ScriptState.Log.Error(message);
                 throw new Exception(message);
             }
 
             if (mod.PassthroughGP == null)
             {
                 string message = string.Format("{1} model {0} has no geometry provider", name, reponame);
-                state.Log.Error(message);
+                ScriptState.Log.Error(message);
                 throw new Exception(message);
             }
 

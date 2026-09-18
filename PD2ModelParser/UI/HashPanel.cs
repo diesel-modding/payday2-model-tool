@@ -23,7 +23,7 @@ namespace PD2ModelParser.UI
         {
             if (File.Exists(localHashlistPath))
             {
-                var info = new FileInfo(localHashlistPath);
+                _ = new FileInfo(localHashlistPath);
             }
         }
 

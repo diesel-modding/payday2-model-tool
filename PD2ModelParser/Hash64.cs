@@ -170,10 +170,7 @@ namespace PD2ModelParser
 
         public static unsafe ulong Hash(byte[] k, ulong length, ulong level)
         {
-            if ((ulong)k.Length < length)
-            {
-                throw new ArgumentOutOfRangeException("k is longer than length!");
-            }
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(length, (ulong)k.Length);
 
             fixed (byte* ptr = k)
             {

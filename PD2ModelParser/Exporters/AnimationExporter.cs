@@ -8,21 +8,22 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace PD2ModelParser.Exporters {
-    class AnimationExporter {
+    internal class AnimationExporter {
         public static string ExportFile(FullModelData data, string path) {
-            AnimationFile animationFile = new AnimationFile();
+            AnimationFile animationFile = new();
 
             foreach (Object3D object3D in data.SectionsOfType<Object3D>()) {
                 if (object3D.Animations.Count > 0) {
-                    AnimationFileObject animationFileObject = new AnimationFileObject(object3D.HashName.String);
+                    AnimationFileObject animationFileObject = new(object3D.HashName.String);
 
                     foreach (IAnimationController animationController in object3D.Animations) {
-                        if (animationController is LinearVector3Controller) {
-                            LinearVector3Controller linearVector3Controller = (LinearVector3Controller)animationController;
-                            animationFileObject.PositionKeyframes = new List<Keyframe<Vector3>>(linearVector3Controller.Keyframes);
-                        } else if (animationController is QuatLinearRotationController) {
-                            QuatLinearRotationController quatLinearRotationController = (QuatLinearRotationController)animationController;
-                            animationFileObject.RotationKeyframes = new List<Keyframe<Quaternion>>(quatLinearRotationController.Keyframes);
+                        if (animationController is LinearVector3Controller linearVector3Controller)
+                        {
+                            animationFileObject.PositionKeyframes = [.. linearVector3Controller.Keyframes];
+                        }
+                        else if (animationController is QuatLinearRotationController quatLinearRotationController)
+                        {
+                            animationFileObject.RotationKeyframes = [.. quatLinearRotationController.Keyframes];
                         }
                     }
 

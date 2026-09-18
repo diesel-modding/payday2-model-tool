@@ -1,12 +1,12 @@
-﻿namespace PD2ModelParser
+﻿namespace PD2ModelParser.Misc
 {
-    static class SerializeUtils
+    internal static class SerializeUtils
     {
         static public System.Numerics.Vector3 ReadVector3(this System.IO.BinaryReader self)
-            => new System.Numerics.Vector3(self.ReadSingle(), self.ReadSingle(), self.ReadSingle());
+            => new(self.ReadSingle(), self.ReadSingle(), self.ReadSingle());
 
         static public System.Numerics.Quaternion ReadQuaternion(this System.IO.BinaryReader self)
-            => new System.Numerics.Quaternion(self.ReadSingle(), self.ReadSingle(), self.ReadSingle(), self.ReadSingle());
+            => new(self.ReadSingle(), self.ReadSingle(), self.ReadSingle(), self.ReadSingle());
 
         static public void Write(this System.IO.BinaryWriter self, System.Numerics.Vector3 vec)
         {

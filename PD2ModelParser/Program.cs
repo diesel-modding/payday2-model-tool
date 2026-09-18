@@ -10,11 +10,11 @@ using PD2ModelParser.Modelscript;
 
 namespace PD2ModelParser
 {
-    class Program
+    internal class Program
     {
 
         [STAThread]
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
             Log.Default = new ConsoleLogger();
 
@@ -23,7 +23,7 @@ namespace PD2ModelParser
                 return;
 
             Application.EnableVisualStyles();
-            Form1 form = new Form1();
+            Form1 form = new();
             Application.Run(form);
         }
 
@@ -47,7 +47,7 @@ namespace PD2ModelParser
             var assembly = Assembly.GetExecutingAssembly();
             var informationalVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
 
-            OptionSet p = new OptionSet
+            OptionSet p = new()
             {
                 $"Version: {informationalVersion?.InformationalVersion}",
                 "",

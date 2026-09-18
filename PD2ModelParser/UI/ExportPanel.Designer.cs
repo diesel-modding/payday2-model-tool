@@ -48,7 +48,7 @@
             exportBttn.TabIndex = 17;
             exportBttn.Text = "Convert";
             exportBttn.UseVisualStyleBackColor = false;
-            exportBttn.Click += exportBttn_Click;
+            exportBttn.Click += ExportBttn_Click;
             // 
             // label1
             // 
@@ -91,7 +91,7 @@
             inputFileBox.Name = "inputFileBox";
             inputFileBox.Size = new System.Drawing.Size(623, 27);
             inputFileBox.TabIndex = 20;
-            inputFileBox.FileSelected += inputFileBox_FileSelected;
+            inputFileBox.FileSelected += InputFileBox_FileSelected;
             // 
             // ExportPanel
             // 

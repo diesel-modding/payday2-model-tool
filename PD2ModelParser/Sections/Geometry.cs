@@ -111,26 +111,26 @@ namespace PD2ModelParser.Sections
         TANGENT1 = 25,
     }
     [ModelFileSection(Tags.geometry_tag)]
-    class DieselGeometry : AbstractSection, ISection, IHashNamed
+    internal class DieselGeometry : AbstractSection, ISection, IHashNamed
     {
         public uint vert_count;
         public List<Vector2>[] UVs = new List<Vector2>[8];
-        public List<Vector2> uv0 => UVs[0];
-        public List<Vector2> uv1 => UVs[1];
-        public List<GeometryHeader> Headers{ get; private set;} = new List<GeometryHeader>();
-        public List<Vector3> verts = new List<Vector3>();
-        public List<Vector3> position1 = new List<Vector3>();
-        public List<Vector3> normals = new List<Vector3>();
-        public List<Vector3> normal1 = new List<Vector3>();
-        public List<GeometryColor> vertex_colors = new List<GeometryColor>();
-        public List<GeometryColor> vertex_colors1 = new List<GeometryColor>();
-        public List<GeometryWeightGroups> weight_groups = new List<GeometryWeightGroups>();
-        public List<GeometryWeightGroups> weight_groups1 = new List<GeometryWeightGroups>();
-        public List<Vector3> weights = new List<Vector3>();
-        public List<Vector4> weights1 = new List<Vector4>();
-        public List<Vector3> binormals = new List<Vector3>();
-        public List<Vector3> tangents = new List<Vector3>();
-        public List<float> point_sizes = new List<float>();
+        public List<Vector2> Uv0 => UVs[0];
+        public List<Vector2> Uv1 => UVs[1];
+        public List<GeometryHeader> Headers{ get; private set;} = [];
+        public List<Vector3> verts = [];
+        public List<Vector3> position1 = [];
+        public List<Vector3> normals = [];
+        public List<Vector3> normal1 = [];
+        public List<GeometryColor> vertex_colors = [];
+        public List<GeometryColor> vertex_colors1 = [];
+        public List<GeometryWeightGroups> weight_groups = [];
+        public List<GeometryWeightGroups> weight_groups1 = [];
+        public List<Vector3> weights = [];
+        public List<Vector4> weights1 = [];
+        public List<Vector3> binormals = [];
+        public List<Vector3> tangents = [];
+        public List<float> point_sizes = [];
         public enum GeometryFormat
         {
             Payday,
@@ -218,8 +218,8 @@ namespace PD2ModelParser.Sections
             outstream.Write(raw);
         }
 
-        private static readonly uint[] PaydayItemSizes = { 0, 4, 8, 12, 16, 4, 4, 8, 4, 4 };
-        private static readonly uint[] RaidItemSizes = { 0, 4, 8, 12, 16, 4, 4, 8, 12, 8 };
+        private static readonly uint[] PaydayItemSizes = [0, 4, 8, 12, 16, 4, 4, 8, 4, 4];
+        private static readonly uint[] RaidItemSizes = [0, 4, 8, 12, 16, 4, 4, 8, 12, 8];
         private uint GetItemSizeBytes(GeometryHeader head)
         {
             uint[] sizes = Format == GeometryFormat.Raid ? RaidItemSizes : PaydayItemSizes;
@@ -228,13 +228,15 @@ namespace PD2ModelParser.Sections
         public DieselGeometry Clone()
         {
             var src = this;
-            var dst = new DieselGeometry();
-            dst.Format = src.Format;
-            dst.vert_count = vert_count;
+            var dst = new DieselGeometry
+            {
+                Format = src.Format,
+                vert_count = vert_count
+            };
             dst.Headers.AddRange(src.Headers.Select(i => new GeometryHeader(i.ItemSize, i.ItemType)));
             dst.verts.AddRange(src.verts);
-            dst.uv0.AddRange(src.uv0);
-            dst.uv1.AddRange(src.uv1);
+            dst.Uv0.AddRange(src.Uv0);
+            dst.Uv1.AddRange(src.Uv1);
             dst.normals.AddRange(src.normals);
             dst.vertex_colors.AddRange(src.vertex_colors);
             dst.weight_groups.AddRange(src.weight_groups);
@@ -248,20 +250,20 @@ namespace PD2ModelParser.Sections
         public DieselGeometry()
         {
             SectionId = 0;
-            for (int i = 0; i < UVs.Length; i++) UVs[i] = new List<Vector2>();
+            for (int i = 0; i < UVs.Length; i++) UVs[i] = [];
         }
-        public DieselGeometry(obj_data newobject) : this()
+        public DieselGeometry(Obj_data newobject) : this()
         {
-            vert_count = (uint)newobject.verts.Count;
+            vert_count = (uint)newobject.Verts.Count;
             Headers.Add(new GeometryHeader(3, GeometryChannelTypes.POSITION0));
             Headers.Add(new GeometryHeader(9, GeometryChannelTypes.TEXCOORD0));
             Headers.Add(new GeometryHeader(8, GeometryChannelTypes.NORMAL0));
             Headers.Add(new GeometryHeader(8, GeometryChannelTypes.BINORMAL0));
             Headers.Add(new GeometryHeader(8, GeometryChannelTypes.TANGENT0));
-            verts = newobject.verts;
-            UVs[0] = newobject.uv;
-            normals = newobject.normals;
-            HashName = new HashName(newobject.object_name + ".DieselGeometry");
+            verts = newobject.Verts;
+            UVs[0] = newobject.Uv;
+            normals = newobject.Normals;
+            HashName = new HashName(newobject.Object_name + ".DieselGeometry");
         }
         public DieselGeometry(BinaryReader instream, SectionHeader section) : this()
         {
@@ -270,8 +272,10 @@ namespace PD2ModelParser.Sections
             uint header_count = instream.ReadUInt32();
             for (int x = 0; x < header_count; x++)
             {
-                GeometryHeader header = new GeometryHeader();
-                header.ItemSize = instream.ReadUInt32();
+                GeometryHeader header = new()
+                {
+                    ItemSize = instream.ReadUInt32()
+                };
                 uint itemType = instream.ReadUInt32();
                 if (section.legacy && itemType > (uint)GeometryChannelTypes.TEXCOORD7) itemType += 2;
                 header.ItemType = (GeometryChannelTypes)itemType;
@@ -351,7 +355,7 @@ namespace PD2ModelParser.Sections
                         weights.Capacity = (int)vert_count + 1;
                         for (int x = 0; x < vert_count; x++)
                         {
-                            Vector3 weights_entry = new Vector3
+                            Vector3 weights_entry = new()
                             {
                                 X = instream.ReadSingle(),
                                 Y = instream.ReadSingle()
@@ -425,7 +429,7 @@ namespace PD2ModelParser.Sections
         public override void StreamWriteData(BinaryWriter outstream)
         {
             List<Vector3> verts = this.verts;
-            List<Vector3> normals = this.normals.ToList();
+            List<Vector3> normals = [.. this.normals];
             List<GeometryWeightGroups> weight_groups = this.weight_groups;
             List<Vector3> binormals = this.binormals;
             List<Vector3> tangents = this.tangents;
@@ -604,7 +608,7 @@ namespace PD2ModelParser.Sections
         }
         public override string ToString()
         {
-            return base.ToString() + " Count: " + vert_count + " Headers: " + Headers.Count + " Verts: " + verts.Count + " UV0: " + uv0.Count + " UV1: " + uv1.Count + " Normals: " + normals.Count + " Weight Groups: " + weight_groups.Count + " Weights: " + weights.Count + " Binormals: " + binormals.Count + " Tangents: " + tangents.Count;
+            return base.ToString() + " Count: " + vert_count + " Headers: " + Headers.Count + " Verts: " + verts.Count + " UV0: " + Uv0.Count + " UV1: " + Uv1.Count + " Normals: " + normals.Count + " Weight Groups: " + weight_groups.Count + " Weights: " + weights.Count + " Binormals: " + binormals.Count + " Tangents: " + tangents.Count;
         }
     }
 }

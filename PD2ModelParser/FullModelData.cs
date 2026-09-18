@@ -6,10 +6,10 @@ using System.Text.RegularExpressions;
 
 namespace PD2ModelParser
 {
-    public class FullModelData
+    public partial class FullModelData
     {
-        public List<SectionHeader> sections = new List<SectionHeader>();
-        public Dictionary<UInt32, ISection> parsed_sections = new Dictionary<UInt32, ISection>();
+        public List<SectionHeader> sections = [];
+        public Dictionary<UInt32, ISection> parsed_sections = [];
         public byte[] leftover_data = null;
 
         /// <summary>
@@ -39,16 +39,13 @@ namespace PD2ModelParser
             parsed_sections[id] = obj;
 
             // And create a header for it
-            SectionHeader header = new SectionHeader(id) {type = obj.TypeCode};
+            SectionHeader header = new(id) {type = obj.TypeCode};
             sections.Add(header);
         }
 
         public void RemoveSection(uint id)
         {
-            SectionHeader header = sections.Find(s => s.id == id);
-            if (header == null)
-                throw new ArgumentException("Cannot remove missing header", nameof(id));
-
+            SectionHeader header = sections.Find(s => s.id == id) ?? throw new ArgumentException("Cannot remove missing header", nameof(id));
             if (!parsed_sections.ContainsKey(id))
                 throw new ArgumentException("Cannot remove unparsed header", nameof(id));
 
@@ -91,7 +88,7 @@ namespace PD2ModelParser
 
                 if(!seenNamesOverall.TryGetValue(st, out var seenNames))
                 {
-                    seenNames = seenNamesOverall[st] = new HashSet<ulong>();
+                    seenNames = seenNamesOverall[st] = [];
                 }
 
                 var candidateName = sec.HashName;
@@ -113,7 +110,7 @@ namespace PD2ModelParser
                         {
                             var count = int.Parse(m.Groups[1].Value);
                             count++;
-                            var baseName = candidateName.String.Substring(0, candidateName.String.Length - m.Length);
+                            var baseName = candidateName.String[..^m.Length];
                             candidateName = new HashName(string.Format("{0}.{1:D3}", baseName, count));
                         }
                     }

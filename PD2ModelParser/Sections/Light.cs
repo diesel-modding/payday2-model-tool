@@ -3,7 +3,7 @@ using BinaryWriter = System.IO.BinaryWriter;
 
 namespace PD2ModelParser.Sections
 {
-    class LightColour
+    internal class LightColour
     {
         public float R { get; set; } = 0;
         public float G { get; set; } = 0;
@@ -29,7 +29,7 @@ namespace PD2ModelParser.Sections
     }
 
     [ModelFileSection(Tags.light_tag,ShowInInspectorRoot=false)]
-    class Light : Object3D, ISection
+    internal class Light : Object3D, ISection
     {
         /* zdann says that
          *   color - vector3
@@ -44,14 +44,14 @@ namespace PD2ModelParser.Sections
          *   ambient_cube_side - vector3
          * are pertinent properties to lights */
 
-        public byte unknown_1 { get; set; } // 1 in all known lights
+        public byte Unknown_1 { get; set; } // 1 in all known lights
         public int LightType { get; set; } // it's 1 in light_omni and 2 in light_spot
         public LightColour Colour { get; set; }
         public float NearRange { get; set; } // probably NearRange
         public float FarRange { get; set; } // probably FarRange
-        public float unknown_6 { get; set; }
-        public float unknown_7 { get; set; }
-        public float unknown_8 { get; set; } // BitConverter.ToSingle(byte[4] { 4, 0, 0, 0 }, 0) in all known lights
+        public float Unknown_6 { get; set; }
+        public float Unknown_7 { get; set; }
+        public float Unknown_8 { get; set; } // BitConverter.ToSingle(byte[4] { 4, 0, 0, 0 }, 0) in all known lights
 
         public Light(string name, Object3D parent) : base(name, parent) { }
 
@@ -60,16 +60,16 @@ namespace PD2ModelParser.Sections
             this.SectionId = section.id;
             this.size = section.size;
 
-            unknown_1 = instream.ReadByte();
+            Unknown_1 = instream.ReadByte();
             LightType = instream.ReadInt32();
 
             Colour = new LightColour(instream);
 
             NearRange = instream.ReadSingle();
             FarRange = instream.ReadSingle();
-            unknown_6 = instream.ReadSingle();
-            unknown_7 = instream.ReadSingle();
-            unknown_8 = instream.ReadSingle();
+            Unknown_6 = instream.ReadSingle();
+            Unknown_7 = instream.ReadSingle();
+            Unknown_8 = instream.ReadSingle();
 
             if ((section.offset + 12 + section.size) > instream.BaseStream.Position)
             {
@@ -81,14 +81,14 @@ namespace PD2ModelParser.Sections
         public override void StreamWriteData(BinaryWriter outstream)
         {
             base.StreamWriteData(outstream);
-            outstream.Write(unknown_1);
+            outstream.Write(Unknown_1);
             outstream.Write(LightType);
             Colour.StreamWriteData(outstream);
             outstream.Write(NearRange);
             outstream.Write(FarRange);
-            outstream.Write(unknown_6);
-            outstream.Write(unknown_7);
-            outstream.Write(unknown_8);
+            outstream.Write(Unknown_6);
+            outstream.Write(Unknown_7);
+            outstream.Write(Unknown_8);
             if (remaining_data != null)
             {
                 outstream.Write(remaining_data, 0, remaining_data.Length);

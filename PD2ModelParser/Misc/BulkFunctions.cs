@@ -1,11 +1,12 @@
-﻿using System;
+﻿using PD2ModelParser.Importers;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace PD2ModelParser
+namespace PD2ModelParser.Misc
 {
-    static class BulkFunctions
+    internal static class BulkFunctions
     {
         public static IEnumerable<FileInfo> WalkDirectoryTreeDepth(DirectoryInfo dir, string filepattern)
         {
@@ -39,7 +40,7 @@ namespace PD2ModelParser
                 }
                 if (fmd != null)
                 {
-                yield return (i.FullName, i.FullName.Substring(root.Length), fmd);
+                yield return (i.FullName, i.FullName[root.Length..], fmd);
             }
         }
         }

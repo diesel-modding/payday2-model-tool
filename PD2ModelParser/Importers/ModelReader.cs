@@ -1,16 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-
 using PD2ModelParser.Sections;
 
-namespace PD2ModelParser
+namespace PD2ModelParser.Importers
 {
-    static class ModelReader
+    internal static class ModelReader
     {
         public static FullModelData Open(string filepath)
         {
-            FullModelData data = new FullModelData();
+            FullModelData data = new();
 
             StaticStorage.hashindex.Load();
 
@@ -32,18 +31,14 @@ namespace PD2ModelParser
         /// <param name="filepath">The name of the file to open</param>
         public static void VisitModel(string filepath, SectionVisitor visitor)
         {
-            using (FileStream fs = new FileStream(filepath, FileMode.Open, FileAccess.Read))
-            {
-                using (BinaryReader br = new BinaryReader(fs))
-                {
-                    List<SectionHeader> headers = ReadHeaders(br);
+            using FileStream fs = new(filepath, FileMode.Open, FileAccess.Read);
+            using BinaryReader br = new(fs);
+            List<SectionHeader> headers = ReadHeaders(br);
 
-                    foreach (SectionHeader header in headers)
-                    {
-                        fs.Position = header.Start;
-                        visitor(br, header);
-                    }
-                }
+            foreach (SectionHeader header in headers)
+            {
+                fs.Position = header.Start;
+                visitor(br, header);
             }
         }
 
@@ -92,7 +87,7 @@ namespace PD2ModelParser
                     sectionCount);
             }
 
-            List<SectionHeader> sections = new List<SectionHeader>();
+            List<SectionHeader> sections = [];
 
             for (int x = 0; x < sectionCount; x++)
             {
@@ -115,7 +110,7 @@ namespace PD2ModelParser
 
             byte[] bytes;
 
-            using (FileStream fs = new FileStream(filepath, FileMode.Open, FileAccess.Read))
+            using (FileStream fs = new(filepath, FileMode.Open, FileAccess.Read))
             {
                 bytes = new byte[fs.Length];
                 int res = fs.Read(bytes, 0, (int)fs.Length);
@@ -123,53 +118,51 @@ namespace PD2ModelParser
                     throw new Exception($"Failed to read {filepath} all in one go!");
             }
 
-            using (var ms = new MemoryStream(bytes, 0, bytes.Length, false, true))
-            using (var br = new BinaryReader(ms))
+            using var ms = new MemoryStream(bytes, 0, bytes.Length, false, true);
+            using var br = new BinaryReader(ms);
+            sections.Clear();
+            sections.AddRange(ReadHeaders(br));
+
+            foreach (SectionHeader sh in sections)
             {
-                sections.Clear();
-                sections.AddRange(ReadHeaders(br));
+                ISection section;
 
-                foreach (SectionHeader sh in sections)
+                ms.Position = sh.Start;
+
+                if (SectionMetaInfo.TryGetForTag(sh.type, out var mi))
                 {
-                    ISection section;
+                    section = mi.Deserialise(br, sh);
+                }
+                else
+                {
+                    Log.Default.Warn("UNKNOWN Tag {2} at {0} Size: {1}", sh.offset, sh.size, sh.type);
+                    ms.Position = sh.offset;
 
-                    ms.Position = sh.Start;
-
-                    if (SectionMetaInfo.TryGetForTag(sh.type, out var mi))
-                    {
-                        section = mi.Deserialise(br, sh);
-                    }
-                    else
-                    {
-                        Log.Default.Warn("UNKNOWN Tag {2} at {0} Size: {1}", sh.offset, sh.size, sh.type);
-                        ms.Position = sh.offset;
-
-                        section = new Unknown(br, sh);
-                    }
-
-                    if (ms.Position != sh.End)
-                    {
-                        //throw new Exception(string.Format("Section of type {2} {0} read more than its length of {1} ", sh.id, sh.size, sh.type));
-                        Log.Default.Warn("Section {0} (type {2:X}) was too short ({1} bytes read)", sh.id, sh.size, sh.type);
-                    }
-
-                    Log.Default.Debug("Section {0} at {1} length {2}",
-                        section.GetType().Name, sh.offset, sh.size);
-
-                    parsed_sections.Add(sh.id, section);
+                    section = new Unknown(br, sh);
                 }
 
-                foreach (var i in parsed_sections)
+                if (ms.Position != sh.End)
                 {
-                    if (i.Value is IPostLoadable pl)
-                    {
-                        pl.PostLoad(i.Key, parsed_sections);
-                    }
+                    //throw new Exception(string.Format("Section of type {2} {0} read more than its length of {1} ", sh.id, sh.size, sh.type));
+                    Log.Default.Warn("Section {0} (type {2:X}) was too short ({1} bytes read)", sh.id, sh.size, sh.type);
                 }
 
-                if (ms.Position < ms.Length)
-                    data.leftover_data = br.ReadBytes((int)(ms.Length - ms.Position));
+                Log.Default.Debug("Section {0} at {1} length {2}",
+                    section.GetType().Name, sh.offset, sh.size);
+
+                parsed_sections.Add(sh.id, section);
             }
+
+            foreach (var i in parsed_sections)
+            {
+                if (i.Value is IPostLoadable pl)
+                {
+                    pl.PostLoad(i.Key, parsed_sections);
+                }
+            }
+
+            if (ms.Position < ms.Length)
+                data.leftover_data = br.ReadBytes((int)(ms.Length - ms.Position));
         }
     }
 }

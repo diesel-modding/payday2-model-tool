@@ -8,11 +8,11 @@ using DM = PD2ModelParser.Sections;
 
 namespace PD2ModelParser.Importers
 {
-    class GltfImporter
+    internal class GltfImporter(FullModelData data)
     {
         public static void Import(FullModelData fmd, string path, bool createModels, Func<string, DM.Object3D> parentFinder, IOptionReceiver opts)
         {
-            GLTF.ModelRoot gltf = null;
+            GLTF.ModelRoot gltf;
             try
             {
                 gltf = GLTF.ModelRoot.Load(path);
@@ -30,7 +30,7 @@ namespace PD2ModelParser.Importers
                 importer.overwriteRigging = bool.Parse(preserveSkinsOpt);
             }
 
-            bool TryLoadWithoutTangents(string path, out GLTF.ModelRoot root)
+            static bool TryLoadWithoutTangents(string path, out GLTF.ModelRoot root)
             {
                 root = null;
                 try
@@ -52,18 +52,15 @@ namespace PD2ModelParser.Importers
                     var j = Newtonsoft.Json.Linq.JObject.Parse(json);
                     bool modified = false;
 
-                    var meshes = j["meshes"] as Newtonsoft.Json.Linq.JArray;
-                    if (meshes != null)
+                    if (j["meshes"] is Newtonsoft.Json.Linq.JArray meshes)
                     {
                         foreach (var mesh in meshes)
                         {
-                            var prims = mesh["primitives"] as Newtonsoft.Json.Linq.JArray;
-                            if (prims == null) continue;
+                            if (mesh["primitives"] is not Newtonsoft.Json.Linq.JArray prims) continue;
 
                             foreach (var prim in prims)
                             {
-                                var attrs = prim["attributes"] as Newtonsoft.Json.Linq.JObject;
-                                if (attrs != null && attrs.Property("TANGENT") != null)
+                                if (prim["attributes"] is Newtonsoft.Json.Linq.JObject attrs && attrs.Property("TANGENT") != null)
                                 {
                                     attrs.Property("TANGENT").Remove();
                                     modified = true;
@@ -80,32 +77,30 @@ namespace PD2ModelParser.Importers
                     var padded = new byte[newJsonBytes.Length + pad];
                     Array.Copy(newJsonBytes, padded, newJsonBytes.Length);
 
-                    using (var ms = new System.IO.MemoryStream())
+                    using var ms = new System.IO.MemoryStream();
+                    ms.Write(BitConverter.GetBytes(0x46546C67), 0, 4);
+                    ms.Write(BitConverter.GetBytes(2u), 0, 4);
+                    ms.Write(BitConverter.GetBytes(0u), 0, 4);
+                    ms.Write(BitConverter.GetBytes((uint)padded.Length), 0, 4);
+                    ms.Write(BitConverter.GetBytes(0x4E4F534A), 0, 4);
+                    ms.Write(padded, 0, padded.Length);
+
+                    int jsonEnd = offset + (int)chunkLen;
+                    if (jsonEnd < data.Length)
                     {
-                        ms.Write(BitConverter.GetBytes(0x46546C67), 0, 4);
-                        ms.Write(BitConverter.GetBytes(2u), 0, 4);
-                        ms.Write(BitConverter.GetBytes(0u), 0, 4);
-                        ms.Write(BitConverter.GetBytes((uint)padded.Length), 0, 4);
-                        ms.Write(BitConverter.GetBytes(0x4E4F534A), 0, 4);
-                        ms.Write(padded, 0, padded.Length);
-
-                        int jsonEnd = offset + (int)chunkLen;
-                        if (jsonEnd < data.Length)
-                        {
-                            ms.Write(data, jsonEnd, data.Length - jsonEnd);
-                        }
-
-                        ms.Seek(8, System.IO.SeekOrigin.Begin);
-                        ms.Write(BitConverter.GetBytes((uint)ms.Length), 0, 4);
-
-                        var tmp = System.IO.Path.Combine(
-                            System.IO.Path.GetTempPath(),
-                            System.IO.Path.GetFileNameWithoutExtension(path) + "_notangent.glb");
-
-                        System.IO.File.WriteAllBytes(tmp, ms.ToArray());
-                        root = GLTF.ModelRoot.Load(tmp);
-                        return true;
+                        ms.Write(data, jsonEnd, data.Length - jsonEnd);
                     }
+
+                    ms.Seek(8, System.IO.SeekOrigin.Begin);
+                    ms.Write(BitConverter.GetBytes((uint)ms.Length), 0, 4);
+
+                    var tmp = System.IO.Path.Combine(
+                        System.IO.Path.GetTempPath(),
+                        System.IO.Path.GetFileNameWithoutExtension(path) + "_notangent.glb");
+
+                    System.IO.File.WriteAllBytes(tmp, ms.ToArray());
+                    root = GLTF.ModelRoot.Load(tmp);
+                    return true;
                 }
                 catch
                 {
@@ -116,7 +111,7 @@ namespace PD2ModelParser.Importers
             string importTransforms = opts.GetOption("import-transforms");
             if (importTransforms != null)
             {
-                bool.TryParse(importTransforms, out importer.importTransforms);
+                _ = bool.TryParse(importTransforms, out importer.importTransforms);
             }
 
             foreach (var mesh in gltf.LogicalMeshes)
@@ -132,21 +127,16 @@ namespace PD2ModelParser.Importers
 
         public static bool ReuseExistingObjects = false;
 
-        FullModelData data;
-        Dictionary<GLTF.Node, DM.Object3D> objectsByNode = new Dictionary<GLTF.Node, DM.Object3D>();
-        bool createModels;
-        bool overwriteRigging;
-        bool importTransforms = true;
-        List<(GLTF.Node node, DM.Model model)> toSkin = new List<(GLTF.Node node, DM.Model model)>();
-        List<(GLTF.Skin skin, DM.Model model)> toRemap = new List<(GLTF.Skin skin, DM.Model model)>();
+        private readonly FullModelData data = data;
+        private readonly Dictionary<GLTF.Node, DM.Object3D> objectsByNode = [];
+        private bool createModels;
+        private bool overwriteRigging;
+        private bool importTransforms = true;
+        private readonly List<(GLTF.Node node, DM.Model model)> toSkin = [];
+        private readonly List<(GLTF.Skin skin, DM.Model model)> toRemap = [];
 
-        float scaleFactor = 100;
-        Matrix4x4 axisCorrection = Matrix4x4.CreateRotationX(MathF.PI / 2);
-
-        public GltfImporter(FullModelData data)
-        {
-            this.data = data;
-        }
+        private readonly float scaleFactor = 100;
+        private Matrix4x4 axisCorrection = Matrix4x4.CreateRotationX(MathF.PI / 2);
 
         private static bool TryGenerateTangentsUsingToolkit(GLTF.MeshPrimitive prim)
         {
@@ -172,7 +162,7 @@ namespace PD2ModelParser.Importers
                 if (createMesh == null)
                     return false;
 
-                var tkMesh = createMesh.Invoke(null, new object[] { prim });
+                var tkMesh = createMesh.Invoke(null, [prim]);
 
                 if (tkMesh == null)
                     return false;
@@ -190,7 +180,7 @@ namespace PD2ModelParser.Importers
 
                 generateTangents.Invoke(
                     null,
-                    new object[] { tkMesh });
+                    [tkMesh]);
 
                 return prim.VertexAccessors.TryGetValue(
                            "TANGENT",
@@ -221,20 +211,20 @@ namespace PD2ModelParser.Importers
                 ImportNode(node, parent, axisCorrection);
             }
 
-            foreach (var i in toSkin)
+            foreach (var (node, model) in toSkin)
             {
-                ImportSkin(i.node, i.model);
+                ImportSkin(node, model);
             }
 
-            foreach (var i in toRemap)
+            foreach (var (skin, model) in toRemap)
             {
-                RemapBoneIds(i.skin, i.model);
+                RemapBoneIds(skin, model);
             }
 
             ImportAnimations(root);
         }
 
-        void UpdatePrimitiveModelFromMesh(GLTF.Mesh gmesh, DM.Model model)
+        private void UpdatePrimitiveModelFromMesh(GLTF.Mesh gmesh, DM.Model model)
         {
             var md = MeshData.FromGltfMesh(gmesh);
 
@@ -245,25 +235,25 @@ namespace PD2ModelParser.Importers
 
             Vector3 boundsMin;
             Vector3 boundsMax;
-            float radDistance;
+            float DistanceRadius;
 
             if (model.Name.StartsWith("c_capsule_", StringComparison.OrdinalIgnoreCase))
             {
-                (boundsMin, boundsMax, radDistance) = ReconstructCapsuleBounds(md);
+                (boundsMin, boundsMax, DistanceRadius) = ReconstructCapsuleBounds(md);
             }
             else
             {
                 boundsMin = md.verts.Aggregate(MathUtil.Min) * scaleFactor;
                 boundsMax = md.verts.Aggregate(MathUtil.Max) * scaleFactor;
-                radDistance = CalculateRadDistance(boundsMin, boundsMax);
+                DistanceRadius = CalculateDistanceRadius(boundsMin, boundsMax);
             }
 
             model.BoundsMin = boundsMin;
             model.BoundsMax = boundsMax;
-            model.RadDistance = radDistance;
+            model.DistanceRadius = DistanceRadius;
         }
 
-        void ImportNode(GLTF.Node node, DM.Object3D parent, Matrix4x4 parentCorrection)
+        private void ImportNode(GLTF.Node node, DM.Object3D parent, Matrix4x4 parentCorrection)
         {
             var hashname = HashName.FromNumberOrString(node.Name);
             DM.Object3D obj = null;
@@ -316,7 +306,7 @@ namespace PD2ModelParser.Importers
             }
             else
             {
-                if (node.Mesh != null && !(obj is DM.Model))
+                if (node.Mesh != null && obj is not DM.Model)
                 {
                     if (!createModels)
                     {
@@ -345,11 +335,11 @@ namespace PD2ModelParser.Importers
                 {
                     if (IsPrimitiveModelName(node.Name))
                     {
-                        if (mod.version != 6)
+                        if (mod.Version != 6)
                         {
                             throw new Exception(
                                 $"Primitive {node.Name} already exists " +
-                                $"as model version {mod.version}.");
+                                $"as model version {mod.Version}.");
                         }
 
                         UpdatePrimitiveModelFromMesh(node.Mesh, mod);
@@ -409,7 +399,7 @@ namespace PD2ModelParser.Importers
             }
         }
 
-        void OverwriteModel(GLTF.Mesh gmesh, DM.Model model)
+        private void OverwriteModel(GLTF.Mesh gmesh, DM.Model model)
         {
             var md = MeshData.FromGltfMesh(gmesh);
 
@@ -446,12 +436,12 @@ namespace PD2ModelParser.Importers
             model.RenderAtoms = md.renderAtoms;
         }
 
-        DM.Light CreateNewLamp(GLTF.PunctualLight gl, string name)
+        private DM.Light CreateNewLamp(GLTF.PunctualLight gl, string name)
         {
             throw new NotImplementedException("Lights are currently not implemented");
         }
 
-        bool IsPrimitiveModelName(string name)
+        private static bool IsPrimitiveModelName(string name)
         {
             if (string.IsNullOrEmpty(name)) return false;
 
@@ -461,7 +451,7 @@ namespace PD2ModelParser.Importers
                 name.StartsWith("c_box_", StringComparison.OrdinalIgnoreCase);
         }
 
-        DM.Model CreateNewPrimitiveModel(GLTF.Mesh gmesh, string name, DM.Object3D parent)
+        private DM.Model CreateNewPrimitiveModel(GLTF.Mesh gmesh, string name, DM.Object3D parent)
         {
             var md = MeshData.FromGltfMesh(gmesh);
 
@@ -472,27 +462,27 @@ namespace PD2ModelParser.Importers
 
             Vector3 boundsMin;
             Vector3 boundsMax;
-            float radDistance;
+            float DistanceRadius;
 
             if (name.StartsWith("c_capsule_", StringComparison.OrdinalIgnoreCase))
             {
-                (boundsMin, boundsMax, radDistance) = ReconstructCapsuleBounds(md);
+                (boundsMin, boundsMax, DistanceRadius) = ReconstructCapsuleBounds(md);
             }
             else
             {
                 boundsMin = md.verts.Aggregate(MathUtil.Min) * scaleFactor;
                 boundsMax = md.verts.Aggregate(MathUtil.Max) * scaleFactor;
-                radDistance = CalculateRadDistance(boundsMin, boundsMax);
+                DistanceRadius = CalculateDistanceRadius(boundsMin, boundsMax);
             }
 
             Log.Default.Warn(
-                "IMPORT PRIMITIVE: Name={0}, BoundsMin={1}, BoundsMax={2}, radDistance={3}",
-                name, boundsMin, boundsMax, radDistance);
+                "IMPORT PRIMITIVE: Name={0}, BoundsMin={1}, BoundsMax={2}, DistanceRadius={3}",
+                name, boundsMin, boundsMax, DistanceRadius);
 
-            return new DM.Model(name, radDistance, boundsMin, boundsMax, parent);
+            return new DM.Model(name, DistanceRadius, boundsMin, boundsMax, parent);
         }
 
-        private (Vector3 boundsMin, Vector3 boundsMax, float radDistance)
+        private (Vector3 boundsMin, Vector3 boundsMax, float DistanceRadius)
             ReconstructCapsuleBounds(MeshData md)
         {
             if (md.verts == null || md.verts.Count == 0)
@@ -539,8 +529,8 @@ namespace PD2ModelParser.Importers
                 minAxial = MathF.Min(minAxial, axial);
                 maxAxial = MathF.Max(maxAxial, axial);
 
-                Vector3 radial = relative - axisVector * axial;
-                maxRadius = MathF.Max(maxRadius, radial.Length());
+                Vector3 RadiusIal = relative - axisVector * axial;
+                maxRadius = MathF.Max(maxRadius, RadiusIal.Length());
             }
 
             maxRadius *= scaleFactor;
@@ -562,12 +552,12 @@ namespace PD2ModelParser.Importers
 
             Vector3 boundsMin = pd2Center - halfSize;
             Vector3 boundsMax = pd2Center + halfSize;
-            float radDistance = CalculateRadDistance(boundsMin, boundsMax);
+            float DistanceRadius = CalculateDistanceRadius(boundsMin, boundsMax);
 
-            return (boundsMin, boundsMax, radDistance);
+            return (boundsMin, boundsMax, DistanceRadius);
         }
 
-        float CalculateRadDistance(Vector3 boundsMin, Vector3 boundsMax)
+        private static float CalculateDistanceRadius(Vector3 boundsMin, Vector3 boundsMax)
         {
             float result = 0;
 
@@ -589,7 +579,7 @@ namespace PD2ModelParser.Importers
             return result;
         }
 
-        DM.Model CreateNewModel(GLTF.Mesh gmesh, string name)
+        private DM.Model CreateNewModel(GLTF.Mesh gmesh, string name)
         {
             var md = MeshData.FromGltfMesh(gmesh);
 
@@ -611,9 +601,10 @@ namespace PD2ModelParser.Importers
             var matGroup = new DM.MaterialGroup(mats);
             data.AddSection(matGroup);
 
-            var ms = new MeshSections();
-
-            ms.geom = new DM.DieselGeometry();
+            var ms = new MeshSections
+            {
+                geom = new DM.DieselGeometry()
+            };
             data.AddSection(ms.geom);
             ms.geom.HashName = new HashName(gmesh.Name + ".Geometry");
 
@@ -638,14 +629,15 @@ namespace PD2ModelParser.Importers
                 ms.passgp,
                 ms.topoip,
                 matGroup,
-                null);
-
-            model.RenderAtoms = md.renderAtoms;
+                null)
+            {
+                RenderAtoms = md.renderAtoms
+            };
 
             return model;
         }
 
-        private bool IsAncestorOf(GLTF.Node ancestor, GLTF.Node node)
+        private static bool IsAncestorOf(GLTF.Node ancestor, GLTF.Node node)
         {
             if (ancestor == null || node == null)
             {
@@ -667,8 +659,8 @@ namespace PD2ModelParser.Importers
                 return null;
             }
 
-            var firstJointResult = skin.GetJoint((ushort)0);
-            GLTF.Node firstJoint = firstJointResult.Item1;
+            var (Joint, _) = skin.GetJoint((ushort)0);
+            GLTF.Node firstJoint = Joint;
 
             if (firstJoint == null) return null;
 
@@ -694,7 +686,7 @@ namespace PD2ModelParser.Importers
                     for (ushort i = 1; i < skin.JointsCount; i++)
                     {
                         var jointResult = skin.GetJoint(i);
-                        GLTF.Node joint = jointResult.Item1;
+                        GLTF.Node joint = jointResult.Joint;
 
                         if (joint == null || !IsAncestorOf(modelParentNode, joint))
                         {
@@ -721,7 +713,7 @@ namespace PD2ModelParser.Importers
             for (ushort i = 1; i < skin.JointsCount; i++)
             {
                 var jointResult = skin.GetJoint(i);
-                GLTF.Node joint = jointResult.Item1;
+                GLTF.Node joint = jointResult.Joint;
 
                 if (joint == null) continue;
 
@@ -750,10 +742,12 @@ namespace PD2ModelParser.Importers
             return null;
         }
 
-        void ImportSkin(GLTF.Node node, DM.Model model)
+        private void ImportSkin(GLTF.Node node, DM.Model model)
         {
-            DM.SkinBones skinBones = new DM.SkinBones();
-            skinBones.global_skin_transform = Matrix4x4.Identity;
+            DM.SkinBones skinBones = new()
+            {
+                Global_skin_transform = Matrix4x4.Identity
+            };
 
             GLTF.Skin gltfSkin = node.Skin;
             DM.Object3D skeletonRoot;
@@ -769,15 +763,9 @@ namespace PD2ModelParser.Importers
             }
             else
             {
-                skeletonRoot = FindCommonSkeletonRoot(gltfSkin, model);
-
-                if (skeletonRoot == null)
-                {
-                    throw new Exception(
+                skeletonRoot = FindCommonSkeletonRoot(gltfSkin, model) ?? throw new Exception(
                         $"Skinned model \"{model.Name}\" has no GLTF skeleton root " +
                         "and its joint hierarchy has no common root.");
-                }
-
                 Log.Default.Warn(
                     "GltfImporter.ImportSkin: " +
                     "Skeleton root missing from GLTF skin for \"{0}\". " +
@@ -804,7 +792,7 @@ namespace PD2ModelParser.Importers
                     $"{geom.weights.Count} weight entries.");
             }
 
-            HashSet<ushort> usedBones = new HashSet<ushort>();
+            HashSet<ushort> usedBones = [];
             const float threshold = 0.00001f;
 
             for (int i = 0; i < geom.vert_count; i++)
@@ -840,16 +828,16 @@ namespace PD2ModelParser.Importers
                 ushort modelId = (ushort)skinBones.Objects.Count;
 
                 ibm.Translation *= scaleFactor;
-                skinBones.rotations.Add(ibm);
+                skinBones.Rotations.Add(ibm);
                 skinBones.Objects.Add(bone);
                 bmi.bones.Add(modelId);
             }
 
-            skinBones.bone_mappings.Add(bmi);
+            skinBones.Bone_mappings.Add(bmi);
 
             foreach (var ra in model.RenderAtoms)
             {
-                skinBones.bone_mappings.Add(bmi);
+                skinBones.Bone_mappings.Add(bmi);
             }
 
             data.AddSection(skinBones);
@@ -861,9 +849,9 @@ namespace PD2ModelParser.Importers
             DM.SkinBones skinBones = model.SkinBones;
 
             Dictionary<DM.Object3D, ushort> sbIds =
-                new Dictionary<DM.Object3D, ushort>();
+                [];
 
-            for (ushort sbId = 0; sbId < skinBones.count; sbId++)
+            for (ushort sbId = 0; sbId < skinBones.Count; sbId++)
             {
                 DM.Object3D bone = skinBones.Objects[sbId];
                 sbIds[bone] = sbId;
@@ -871,8 +859,7 @@ namespace PD2ModelParser.Importers
 
             ushort? LookupNewBoneId(DM.Object3D bone)
             {
-                ushort sbId;
-                bool found = sbIds.TryGetValue(bone, out sbId);
+                bool found = sbIds.TryGetValue(bone, out ushort sbId);
 
                 if (found) return sbId;
 
@@ -882,7 +869,7 @@ namespace PD2ModelParser.Importers
             }
 
             Dictionary<ushort, ushort> idMapping =
-                new Dictionary<ushort, ushort>();
+                [];
 
             for (ushort gltfId = 0; gltfId < src.JointsCount; gltfId++)
             {
@@ -921,7 +908,7 @@ namespace PD2ModelParser.Importers
             public DM.Topology topo;
             public DM.TopologyIP topoip;
             public DM.PassthroughGP passgp;
-            public List<DM.RenderAtom> atoms = new List<DM.RenderAtom>();
+            public List<DM.RenderAtom> atoms = [];
 
             public void PopulateFromMeshData(MeshData md)
             {
@@ -1034,30 +1021,30 @@ namespace PD2ModelParser.Importers
 
         public class MeshData
         {
-            public List<Vector3> verts = new List<Vector3>();
-            public List<Vector3> normals = new List<Vector3>();
-            public List<DM.GeometryColor> vertex_colors = new List<DM.GeometryColor>();
-            public List<Vector3> binormals = new List<Vector3>();
-            public List<Vector3> tangents = new List<Vector3>();
-            public List<DM.Face> faces = new List<DM.Face>();
-            public List<DM.RenderAtom> renderAtoms = new List<DM.RenderAtom>();
-            public List<string> materials = new List<string>();
+            public List<Vector3> verts = [];
+            public List<Vector3> normals = [];
+            public List<DM.GeometryColor> vertex_colors = [];
+            public List<Vector3> binormals = [];
+            public List<Vector3> tangents = [];
+            public List<DM.Face> faces = [];
+            public List<DM.RenderAtom> renderAtoms = [];
+            public List<string> materials = [];
 
-            public List<Vector2>[] uv0 = new List<Vector2>[]
-            {
-                new List<Vector2>(),
-                new List<Vector2>(),
-                new List<Vector2>(),
-                new List<Vector2>(),
-                new List<Vector2>(),
-                new List<Vector2>(),
-                new List<Vector2>(),
-                new List<Vector2>()
-            };
+            public List<Vector2>[] uv0 =
+            [
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                []
+            ];
 
-            public List<Vector3> weights = new List<Vector3>();
+            public List<Vector3> weights = [];
             public List<DM.GeometryWeightGroups> weightGroups =
-                new List<DM.GeometryWeightGroups>();
+                [];
 
             public int AppendVertex(Vertex vtx)
             {
@@ -1097,8 +1084,7 @@ namespace PD2ModelParser.Importers
                         "Limit is 65535");
                 }
 
-                var attribsUsed = mesh.Primitives
-                    .First()
+                var attribsUsed = mesh.Primitives[0]
                     .VertexAccessors
                     .Select(i => i.Key)
                     .OrderBy(i => i);
@@ -1116,12 +1102,12 @@ namespace PD2ModelParser.Importers
                         "Primitives. Diesel cannot represent this.");
                 }
 
-                var ms = new MeshData();
-
-                ms.materials = mesh.Primitives
-                    .Select(i => i.Material?.Name ?? "Material: Default Material")
-                    .Distinct()
-                    .ToList();
+                var ms = new MeshData
+                {
+                    materials = [.. mesh.Primitives
+                        .Select(i => i.Material?.Name ?? "Material: Default Material")
+                        .Distinct()]
+                };
 
                 uint currentBaseVertex = 0;
                 uint currentBaseIndex = 0;
@@ -1148,25 +1134,28 @@ namespace PD2ModelParser.Importers
                         var vtxB = vertices[B];
                         var vtxC = vertices[C];
 
-                        if (!vertexIds.ContainsKey(vtxA))
+                        if (!vertexIds.TryGetValue(vtxA, out int valueA))
                         {
-                            vertexIds[vtxA] = ms.AppendVertex(vtxA);
+                            valueA = ms.AppendVertex(vtxA);
+                            vertexIds[vtxA] = valueA;
                         }
 
-                        if (!vertexIds.ContainsKey(vtxB))
+                        if (!vertexIds.TryGetValue(vtxB, out int valueB))
                         {
-                            vertexIds[vtxB] = ms.AppendVertex(vtxB);
+                            valueB = ms.AppendVertex(vtxB);
+                            vertexIds[vtxB] = valueB;
                         }
 
-                        if (!vertexIds.ContainsKey(vtxC))
+                        if (!vertexIds.TryGetValue(vtxC, out int valueC))
                         {
-                            vertexIds[vtxC] = ms.AppendVertex(vtxC);
+                            valueC = ms.AppendVertex(vtxC);
+                            vertexIds[vtxC] = valueC;
                         }
 
                         var df = new DM.Face(
-                            (ushort)vertexIds[vtxA],
-                            (ushort)vertexIds[vtxB],
-                            (ushort)vertexIds[vtxC]);
+                            (ushort)valueA,
+                            (ushort)valueB,
+                            (ushort)valueC);
 
                         ms.faces.Add(df);
                     }
@@ -1181,7 +1170,7 @@ namespace PD2ModelParser.Importers
                 return ms;
             }
 
-            static IEnumerable<Vertex> GetVerticesFromPrimitive(GLTF.MeshPrimitive prim)
+            private static IEnumerable<Vertex> GetVerticesFromPrimitive(GLTF.MeshPrimitive prim)
             {
                 var pos = prim.VertexAccessors["POSITION"];
 
@@ -1312,11 +1301,11 @@ namespace PD2ModelParser.Importers
 
                         for (int i = 0; i < tris.Count; i++)
                         {
-                            var t = tris[i];
+                            var (A, B, C) = tris[i];
 
-                            int i1 = t.A;
-                            int i2 = t.B;
-                            int i3 = t.C;
+                            int i1 = A;
+                            int i2 = B;
+                            int i3 = C;
 
                             var v1 = positions[i1];
                             var v2 = positions[i2];

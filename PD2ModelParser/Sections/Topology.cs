@@ -6,25 +6,18 @@ using System.Linq;
 namespace PD2ModelParser.Sections
 {
     /** A triangular face */
-    public struct Face
+    public readonly struct Face(ushort a, ushort b, ushort c)
     {
         /** The index of the first vertex in this face */
-        public readonly ushort a;
+        public readonly ushort a = a;
 
         /** The index of the second vertex in this face */
-        public readonly ushort b;
+        public readonly ushort b = b;
 
         /** The index of the third (last) vertex in this face */
-        public readonly ushort c;
+        public readonly ushort c = c;
 
-        public Face(ushort a, ushort b, ushort c)
-        {
-            this.a = a;
-            this.b = b;
-            this.c = c;
-        }
-
-        public Face OffsetBy(int offset)
+        public readonly Face OffsetBy(int offset)
         {
             return new Face(
                 (ushort) (a + offset),
@@ -33,19 +26,19 @@ namespace PD2ModelParser.Sections
             );
         }
 
-        public bool BoundsCheck(int vertlen)
+        public readonly bool BoundsCheck(int vertlen)
         {
             return a >= 0 && b >= 0 && c >= 0 && a < vertlen && b < vertlen && c < vertlen;
         }
 
-        public override string ToString()
+        public override readonly string ToString()
         {
             return $"{a}, {b}, {c}";
         }
     }
 
     [ModelFileSection(Tags.topology_tag)]
-    class Topology : AbstractSection, ISection, IHashNamed
+    internal class Topology : AbstractSection, ISection, IHashNamed
     {
         public enum PrimitiveType : uint
         {
@@ -57,8 +50,8 @@ namespace PD2ModelParser.Sections
             TriangleFan = 5
         }
 
-        public PrimitiveType primitive_type { get; set; }
-        public List<Face> facelist = new List<Face>();
+        public PrimitiveType Primitive_type { get; set; }
+        public List<Face> facelist = [];
         public UInt32 count2;
         public byte[] items2;
         public HashName HashName { get; set; }
@@ -67,8 +60,10 @@ namespace PD2ModelParser.Sections
 
         public Topology Clone(string newName)
         {
-            var dst = new Topology(newName);
-            dst.primitive_type = this.primitive_type;
+            var dst = new Topology(newName)
+            {
+                Primitive_type = this.Primitive_type
+            };
             dst.facelist.Capacity = this.facelist.Count;
             dst.facelist.AddRange(this.facelist.Select(f => new Face(f.a, f.b, f.c )));
             dst.count2 = this.count2;
@@ -78,22 +73,22 @@ namespace PD2ModelParser.Sections
 
         public Topology(string objectName)
         {
-            this.primitive_type = PrimitiveType.TriangleList;
+            this.Primitive_type = PrimitiveType.TriangleList;
 
             this.count2 = 0;
-            this.items2 = new byte[0];
+            this.items2 = [];
             this.HashName = new HashName(objectName + ".Topology");
         }
 
-        public Topology(obj_data obj) : this(obj.object_name)
+        public Topology(Obj_data obj) : this(obj.Object_name)
         {
-            this.facelist = obj.faces;
+            this.facelist = obj.Faces;
         }
 
         public Topology(BinaryReader instream, SectionHeader section)
         {
             SectionId = section.id;
-            this.primitive_type = (PrimitiveType)instream.ReadUInt32();
+            this.Primitive_type = (PrimitiveType)instream.ReadUInt32();
             uint count1 = instream.ReadUInt32();
             for (int x = 0; x < count1 / 3; x++)
             {
@@ -114,7 +109,7 @@ namespace PD2ModelParser.Sections
 
         public override void StreamWriteData(BinaryWriter outstream)
         {
-            outstream.Write((uint)this.primitive_type);
+            outstream.Write((uint)this.Primitive_type);
             outstream.Write(facelist.Count * 3);
             foreach (Face face in facelist)
             {
@@ -134,7 +129,7 @@ namespace PD2ModelParser.Sections
         public override string ToString()
         {
             return base.ToString() +
-                   $" primitive_type: {primitive_type} facelist: {facelist.Count} count2: {count2}" +
+                   $" primitive_type: {Primitive_type} facelist: {facelist.Count} count2: {count2}" +
                    $" items2: {items2.Length} HashName: {HashName}" +
                    (this.remaining_data != null ? " REMAINING DATA! " + this.remaining_data.Length + " bytes" : "");
         }

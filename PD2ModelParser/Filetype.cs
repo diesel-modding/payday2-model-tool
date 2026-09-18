@@ -36,7 +36,7 @@ namespace PD2ModelParser
             return TryParseName(System.IO.Path.GetExtension(path), out result);
         }
 
-        class ObjType0 : FileTypeInfo
+        private class ObjType0 : FileTypeInfo
         {
             public override string Extension => "obj";
             public override string Name => "Object UV0";
@@ -48,7 +48,7 @@ namespace PD2ModelParser
         }
         public static readonly FileTypeInfo ObjUV0 = new ObjType0();
 
-        class ObjType1 : FileTypeInfo
+        private class ObjType1 : FileTypeInfo
         {
             public override string Extension => "obj";
             public override string Name => "Object UV1";  
@@ -60,7 +60,7 @@ namespace PD2ModelParser
         }
         public static readonly FileTypeInfo ObjUV1 = new ObjType1();
 
-        class GltfType : FileTypeInfo
+        private class GltfType : FileTypeInfo
         {
             public override string Extension => "gltf";
             public override string Name => "glTF Separate Files";
@@ -73,7 +73,7 @@ namespace PD2ModelParser
         }
         public static readonly FileTypeInfo Gltf = new GltfType();
 
-        class GlbType : GltfType
+        private class GlbType : GltfType
         {
             public override string Extension => "glb";
             public override string Name => "glTF Binary";
@@ -82,7 +82,7 @@ namespace PD2ModelParser
         }
         public static readonly FileTypeInfo Glb = new GlbType();
 
-        class AnimationType : FileTypeInfo
+        private class AnimationType : FileTypeInfo
         {
             public override string Extension => "animation";
             public override string Name => "Animation";
@@ -94,12 +94,12 @@ namespace PD2ModelParser
         }
         public static readonly FileTypeInfo Animation = new AnimationType();
 
-        public static IReadOnlyList<FileTypeInfo> Types { get; } = new List<FileTypeInfo>() {
+        public static IReadOnlyList<FileTypeInfo> Types { get; } = [
             FileTypeInfo.Glb,
             FileTypeInfo.Gltf,
             FileTypeInfo.ObjUV0,
             FileTypeInfo.ObjUV1,
             FileTypeInfo.Animation,
-        };
+        ];
     }
 }

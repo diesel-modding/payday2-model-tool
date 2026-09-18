@@ -53,7 +53,7 @@ namespace PD2ModelParser.UI
             browseBttn.TabIndex = 15;
             browseBttn.Text = "Browse...";
             browseBttn.UseVisualStyleBackColor = true;
-            browseBttn.Click += browseBttn_Click;
+            browseBttn.Click += BrowseBttn_Click;
             // 
             // clearBttn
             // 

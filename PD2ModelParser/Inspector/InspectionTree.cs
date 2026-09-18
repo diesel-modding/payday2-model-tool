@@ -13,12 +13,9 @@ namespace PD2ModelParser.Inspector
         IEnumerable<IInspectorNode> GetChildren();
     }
 
-    class ModelRootNode : IInspectorNode
+    internal class ModelRootNode(FullModelData fmd) : IInspectorNode
     {
-        FullModelData data;
-        public ModelRootNode(FullModelData fmd) {
-            data = fmd;
-        }
+        private readonly FullModelData data = fmd;
 
         public string Key => "<root>";
         public string IconName => null;
@@ -29,11 +26,11 @@ namespace PD2ModelParser.Inspector
     }
 
 
-    class AllSectionsNode<TSection> : IInspectorNode
+    internal class AllSectionsNode<TSection> : IInspectorNode
         where TSection : class, Sections.ISection
     {
-        FullModelData data;
-        Func<TSection, string> labeller;
+        private readonly FullModelData data;
+        private readonly Func<TSection, string> labeller;
         public AllSectionsNode(FullModelData fmd)
         {
             data = fmd;
@@ -66,22 +63,18 @@ namespace PD2ModelParser.Inspector
         }
     }
 
-    class GenericNode : IInspectorNode
+    internal class GenericNode : IInspectorNode
     {
         public string Key { get; set; }
         public string IconName { get; set; }
         public string Label { get; set; }
         public object PropertyItem { get; set; }
-        public IEnumerable<IInspectorNode> GetChildren() => Enumerable.Empty<IInspectorNode>();
+        public IEnumerable<IInspectorNode> GetChildren() => [];
     }
 
-    class ObjectsRootNode : IInspectorNode
+    internal class ObjectsRootNode(FullModelData fmd) : IInspectorNode
     {
-        FullModelData data;
-        public ObjectsRootNode(FullModelData fmd)
-        {
-            data = fmd;
-        }
+        private readonly FullModelData data = fmd;
 
         public string Key => "<objects>";
         public string IconName => null;
@@ -93,10 +86,10 @@ namespace PD2ModelParser.Inspector
         }
     }
 
-    class ObjectNode : IInspectorNode
+    internal class ObjectNode : IInspectorNode
     {
-        FullModelData data;
-        Sections.Object3D obj;
+        private readonly FullModelData data;
+        private readonly Sections.Object3D obj;
         public ObjectNode(FullModelData fmd, Sections.Object3D obj)
         {
             data = fmd;

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using PD2ModelParser.Misc;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -7,7 +8,7 @@ using System.Numerics;
 namespace PD2ModelParser.Sections
 {
     [ModelFileSection(Tags.quatLinearRotationController_tag)]
-    class QuatLinearRotationController : AbstractSection, ISection, IHashNamed, IAnimationController<Quaternion>
+    internal class QuatLinearRotationController : AbstractSection, ISection, IHashNamed, IAnimationController<Quaternion>
     {
         public UInt32 size;
 
@@ -31,7 +32,7 @@ namespace PD2ModelParser.Sections
 
         public UInt32 unknown1;
         public float KeyframeLength { get; set; }
-        public IList<Keyframe<Quaternion>> Keyframes { get; set; } = new List<Keyframe<Quaternion>>();
+        public IList<Keyframe<Quaternion>> Keyframes { get; set; } = [];
         
         public byte[] remaining_data = null;
 

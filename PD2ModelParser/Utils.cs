@@ -4,7 +4,7 @@ using System.Numerics;
 
 namespace PD2ModelParser
 {
-    static class Tags
+    internal static class Tags
     {
         public const uint animation_data_tag = 0x5DC011B8; // Animation data
         public const uint author_tag = 0x7623C465; // Author tag
@@ -32,20 +32,20 @@ namespace PD2ModelParser
         public const uint custom_hashlist_tag = 0x7c7844fd;
     }
 
-    static class MathUtil
+    internal static class MathUtil
     {
         public static double[] Serialize(System.Numerics.Matrix4x4 matrix)
         {
-            return new double[]
-            {
+            return
+            [
                 matrix.M11, matrix.M21, matrix.M31, matrix.M41,
                 matrix.M12, matrix.M22, matrix.M32, matrix.M42,
                 matrix.M13, matrix.M23, matrix.M33, matrix.M43,
                 matrix.M14, matrix.M24, matrix.M34, matrix.M44,
-            };
+            ];
         }
 
-        public static Vector4 ToVector4(this Sections.GeometryColor input) => new Vector4(input.red/255.0f, input.green/255.0f, input.blue/255.0f, input.alpha/255.0f);
+        public static Vector4 ToVector4(this Sections.GeometryColor input) => new(input.red/255.0f, input.green/255.0f, input.blue/255.0f, input.alpha/255.0f);
 
         public static Sections.GeometryColor ToGeometryColor(this Vector4 input) {
             return new Sections.GeometryColor(
@@ -55,8 +55,8 @@ namespace PD2ModelParser
                 ClampFloatToByte(input.W));
         }
         
-        public static Vector3 Max(Vector3 left, Vector3 right) => new Vector3(Math.Max(left.X, right.X), Math.Max(left.Y, right.Y), Math.Max(left.Z, right.Z));
-        public static Vector3 Min(Vector3 left, Vector3 right) => new Vector3(Math.Min(left.X, right.X), Math.Min(left.Y, right.Y), Math.Min(left.Z, right.Z));
+        public static Vector3 Max(Vector3 left, Vector3 right) => new(Math.Max(left.X, right.X), Math.Max(left.Y, right.Y), Math.Max(left.Z, right.Z));
+        public static Vector3 Min(Vector3 left, Vector3 right) => new(Math.Min(left.X, right.X), Math.Min(left.Y, right.Y), Math.Min(left.Z, right.Z));
 
         /// <summary>
         /// Clamp a float to 0..1 and rescale it to 0..255
@@ -65,7 +65,7 @@ namespace PD2ModelParser
         /// <returns></returns>
         public static byte ClampFloatToByte(double input)
         {
-            var clamped = input > 1.0f ? 1.0f : input;
+            _ = input > 1.0f ? 1.0f : input;
             var scaled = input * 255;
             var rounded = Math.Round(scaled);
             return (byte)rounded;
@@ -85,8 +85,8 @@ namespace PD2ModelParser
 
         // From https://github.com/KhronosGroup/glTF-Validator/blob/master/lib/src/errors.dart
         // which says, "these values are slightly greater than the maximum error from signed 8-bit quantization"
-        const float UnitLengthThresholdVec3 = 0.00674f;
-        const float UnitLengthThresholdVec4 = 0.00769f;
+        private const float UnitLengthThresholdVec3 = 0.00674f;
+        private const float UnitLengthThresholdVec4 = 0.00769f;
 
         public static Boolean IsUnitLength(this System.Numerics.Vector3 vec) =>
             Math.Abs(vec.Length() - 1) <= UnitLengthThresholdVec3;
@@ -187,7 +187,7 @@ namespace PD2ModelParser
     {
         private ulong hash;
         private string str;
-        private bool known;
+        private readonly bool known;
     
         [System.ComponentModel.NotifyParentProperty(true)]
         public string String
@@ -245,7 +245,7 @@ namespace PD2ModelParser
         }
     }
 
-    static class MiscUtil
+    internal static class MiscUtil
     {
         public static R WithValue<T,R>(this T? self, Func<T,R> cb) where T : struct
         {
@@ -255,7 +255,7 @@ namespace PD2ModelParser
             }
             else
             {
-                return default(R);
+                return default;
             }
         }
 

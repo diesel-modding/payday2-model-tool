@@ -8,7 +8,7 @@ using PD2ModelParser.Sections;
 
 namespace PD2ModelParser.Modelscript
 {
-    class DumpAnims : ScriptItem
+    internal class DumpAnims : ScriptItem
     {
         [Required] public string File { get; set; }
 
@@ -16,7 +16,7 @@ namespace PD2ModelParser.Modelscript
         {
             var filepath = state.ResolvePath(File);
 
-            state.Log.Status("Writing animation script to {0}", filepath);
+            ScriptState.Log.Status("Writing animation script to {0}", filepath);
 
             var xws = new XmlWriterSettings()
             {
@@ -67,9 +67,9 @@ namespace PD2ModelParser.Modelscript
             xw.WriteEndElement();
         }
 
-        IEnumerable<string> GetControllerLines(ISection anim)
+        private static IEnumerable<string> GetControllerLines(ISection anim)
         {
-            if (anim == null) return Enumerable.Empty<string>();
+            if (anim == null) return [];
 
             var floats = (anim switch
             {
@@ -80,11 +80,11 @@ namespace PD2ModelParser.Modelscript
             }).ToList();
 
             var strings = floats.Select(line => string.Join("  ", line.Select(i => string.Format("{0,14:g9}", i))));
-            return strings.ToList();
+            return [.. strings];
         }
     }
 
-    class Animate : IScriptItem
+    internal class Animate : IScriptItem
     {
         public enum ItemType
         {
@@ -102,23 +102,25 @@ namespace PD2ModelParser.Modelscript
         }
 
         public string Object { get; set; }
-        public List<Item> Controllers { get; set; } = new List<Item>();
+        public List<Item> Controllers { get; set; } = [];
 
         public void ParseXml(XElement element)
         {
             this.Object = ScriptXml.RequiredAttr(element, "object");
             foreach (var ec in element.Elements())
             {
-                var item = new Animate.Item();
-                item.Type = ec.Name.LocalName.ToLower() switch
+                var item = new Animate.Item
                 {
-                    "null" => Animate.ItemType.Null,
-                    "float" => Animate.ItemType.Float,
-                    "vector3" => Animate.ItemType.Vector3,
-                    "quaternion" => Animate.ItemType.Quaternion,
-                    _ => throw new Exception($"Invalid controller type {ec.Name}")
+                    Type = ec.Name.LocalName.ToLower() switch
+                    {
+                        "null" => Animate.ItemType.Null,
+                        "float" => Animate.ItemType.Float,
+                        "vector3" => Animate.ItemType.Vector3,
+                        "quaternion" => Animate.ItemType.Quaternion,
+                        _ => throw new Exception($"Invalid controller type {ec.Name}")
+                    },
+                    Name = ec.Attribute("name")?.Value
                 };
-                item.Name = ec.Attribute("name")?.Value;
                 if (uint.TryParse(ec.Attribute("flags")?.Value, System.Globalization.NumberStyles.HexNumber, null, out var flags))
                 {
                     item.Flags = flags;
@@ -132,11 +134,13 @@ namespace PD2ModelParser.Modelscript
 
         public void Execute(ScriptState state)
         {
-            if (Object == null) throw new ArgumentNullException("Must supply an object name to use <animate>.", "Object");
-            var obj = state.Data.SectionsOfType<Object3D>().FirstOrDefault(i => i.Name.ToLowerInvariant() == Object.ToLowerInvariant());
-            if (obj == null) throw new Exception($"Object {Object} not found");
+            if (Object == null)
+            {
+                throw new ArgumentNullException(Object, "Must supply an object name to use <animate>.");
+            }
 
-            state.Log.Status($"Setting animations for {Object}");
+            var obj = state.Data.SectionsOfType<Object3D>().FirstOrDefault(i => i.Name.Equals(Object, StringComparison.InvariantCultureIgnoreCase)) ?? throw new Exception($"Object {Object} not found");
+            ScriptState.Log.Status($"Setting animations for {Object}");
             obj.Animations.Clear();
             foreach(var item in Controllers)
             {
@@ -187,11 +191,11 @@ namespace PD2ModelParser.Modelscript
             }
         }
 
-        private void SetLength<T>(IAnimationController<T> c)
+        private static void SetLength<T>(IAnimationController<T> c)
             => c.KeyframeLength = c.Keyframes.Max(kf => kf.Timestamp);
     }
 
-    class LoadAnimation : ScriptItem {
+    internal class LoadAnimation : ScriptItem {
         [Required] public string File { get; set; }
         public override void Execute(ScriptState state) {
             string path = state.ResolvePath(File);

@@ -1,4 +1,6 @@
-﻿using System;
+﻿using PD2ModelParser.Importers;
+using PD2ModelParser.Misc;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -13,7 +15,7 @@ namespace PD2ModelParser.Modelscript
         [Required] public bool Create { get; set; }
         public override void Execute(ScriptState state)
         {
-            state.Log.Status(Create ? "New objects will be created" : "New objects will NOT be created");
+            ScriptState.Log.Status(Create ? "New objects will be created" : "New objects will NOT be created");
             state.CreateNewObjects = Create;
         }
     }
@@ -25,12 +27,12 @@ namespace PD2ModelParser.Modelscript
         {
             if (Name == null)
             {
-                state.Log.Status("Clearing default root point");
+                ScriptState.Log.Status("Clearing default root point");
                 state.DefaultRootPoint = null;
             }
             else
             {
-                state.Log.Status($"Setting default root point to {Name}");
+                ScriptState.Log.Status($"Setting default root point to {Name}");
                 var point = state.Data.SectionsOfType<S.Object3D>()
                     .FirstOrDefault(o => o.Name == Name);
                 state.DefaultRootPoint = point ?? throw new Exception($"Root point {Name} not found!");
@@ -42,7 +44,7 @@ namespace PD2ModelParser.Modelscript
     {
         public override void Execute(ScriptState state)
         {
-            state.Log.Status("Creating new model");
+            ScriptState.Log.Status("Creating new model");
             state.Data = new FullModelData();
         }
 
@@ -54,7 +56,7 @@ namespace PD2ModelParser.Modelscript
         public override void Execute(ScriptState state)
         {
             string resolvedPath = state.ResolvePath(File);
-            state.Log.Status($"Loading model from {resolvedPath}");
+            ScriptState.Log.Status($"Loading model from {resolvedPath}");
             state.Data = ModelReader.Open(resolvedPath);
         }
     }
@@ -65,7 +67,7 @@ namespace PD2ModelParser.Modelscript
         public override void Execute(ScriptState state)
         {
             var resolvedPath = state.ResolvePath(File);
-            state.Log.Status($"Saving model to {resolvedPath}");
+            ScriptState.Log.Status($"Saving model to {resolvedPath}");
             Exporters.DieselExporter.ExportFile(state.Data, resolvedPath);
         }
     }
@@ -77,8 +79,8 @@ namespace PD2ModelParser.Modelscript
         public bool? CreateNewObjects { get; set; }
 
         [NotAttribute] public string DefaultRootPoint { get; set; }
-        [NotAttribute] public Dictionary<string, string> Parents { get; set; } = new Dictionary<string, string>();
-        [NotAttribute] public Dictionary<string, string> ImporterOptions { get; set; } = new Dictionary<string, string>();
+        [NotAttribute] public Dictionary<string, string> Parents { get; set; } = [];
+        [NotAttribute] public Dictionary<string, string> ImporterOptions { get; set; } = [];
 
         public override void ParseXml(XElement element)
         {
@@ -121,7 +123,7 @@ namespace PD2ModelParser.Modelscript
         public override void Execute(ScriptState state)
         {
             var filepath = state.ResolvePath(File);
-            state.Log.Status($"Importing from {filepath}");
+            ScriptState.Log.Status($"Importing from {filepath}");
             FileTypeInfo effectiveType = null;
             if (ForceType != null)
             {
@@ -144,9 +146,7 @@ namespace PD2ModelParser.Modelscript
             var parentObjects = new Dictionary<string, S.Object3D>();
             foreach (var kv in Parents)
             {
-                var parent = state.Data.SectionsOfType<S.Object3D>().FirstOrDefault(i => i.Name == kv.Value);
-                if (parent == null)
-                    throw new Exception($"Cannot find rootpoint element {kv.Value}");
+                var parent = state.Data.SectionsOfType<S.Object3D>().FirstOrDefault(i => i.Name == kv.Value) ?? throw new Exception($"Cannot find rootpoint element {kv.Value}");
                 parentObjects.Add(kv.Key, parent);
             }
 
@@ -162,11 +162,11 @@ namespace PD2ModelParser.Modelscript
 
             S.Object3D ParentFinder(string name)
             {
-                if (parentObjects.ContainsKey(name)) return parentObjects[name];
+                if (parentObjects.TryGetValue(name, out S.Object3D value)) return value;
                 {
                     if (defaultRootObject == null)
                     {
-                        state.Log.Status("No root point. Creating 'root_point' at origin");
+                        ScriptState.Log.Status("No root point. Creating 'root_point' at origin");
                         var root = new S.Object3D("1439828811075370459", null);
                         state.Data.AddSection(root);
                         defaultRootObject = root;
@@ -182,7 +182,7 @@ namespace PD2ModelParser.Modelscript
                 opts.AddOption(kv.Key, kv.Value);
             }
 
-            state.Log.Status("CreateNewObjects: {0} ?? {1}", CreateNewObjects, state.CreateNewObjects);
+            ScriptState.Log.Status("CreateNewObjects: {0} ?? {1}", CreateNewObjects, state.CreateNewObjects);
             bool createObjects = CreateNewObjects ?? state.CreateNewObjects;
 
             effectiveType.Import(state.Data, filepath, createObjects, ParentFinder, opts);
@@ -196,7 +196,7 @@ namespace PD2ModelParser.Modelscript
         public override void Execute(ScriptState state)
         {
             string path = state.ResolvePath(File);
-            state.Log.Status($"Reading pattern UVs from {path}");
+            ScriptState.Log.Status($"Reading pattern UVs from {path}");
             if (!path.EndsWith(".obj"))
             {
                 throw new Exception($"Using \"{0}\" for pattern UV import requires it be OBJ format");
@@ -216,7 +216,7 @@ namespace PD2ModelParser.Modelscript
         public override void Execute(ScriptState state)
         {
             string path = state.ResolvePath(File);
-            state.Log.Status($"Exporting to {path}");
+            ScriptState.Log.Status($"Exporting to {path}");
             FileTypeInfo fti = ForceType;
             if (ForceType == null)
             {
@@ -242,7 +242,7 @@ namespace PD2ModelParser.Modelscript
         public override void Execute(ScriptState state)
         {
             var dir = state.ResolvePath(Directory);
-            state.Log.Status($"Batch exporting in {dir}");
+            ScriptState.Log.Status($"Batch exporting in {dir}");
             var actualType = FileType ?? state.DefaultExportType;
             foreach(var (path, _, fmd) in BulkFunctions.EveryModel(dir)) {
                 state.Data = fmd;
@@ -261,7 +261,7 @@ namespace PD2ModelParser.Modelscript
         [Required, XmlAttribute("type")] public FileTypeInfo FileType { get; set; }
         public override void Execute(ScriptState state)
         {
-            state.Log.Status($"Default batch export type is {FileType}");
+            ScriptState.Log.Status($"Default batch export type is {FileType}");
             state.DefaultExportType = FileType;
         }
     }
@@ -272,13 +272,13 @@ namespace PD2ModelParser.Modelscript
         public override void Execute(ScriptState state)
         {
             string path = state.ResolvePath(File);
-            state.Log.Status($"Running other modelscript {path}");
+            ScriptState.Log.Status($"Running other modelscript {path}");
             string oldBaseDir = state.WorkDir;
             state.WorkDir = System.IO.Path.GetDirectoryName(path);
             var script = Script.ParseXml(path);
             state.ExecuteItems(script);
             state.WorkDir = oldBaseDir;
-            state.Log.Status($"Finished running {File}");
+            ScriptState.Log.Status($"Finished running {File}");
         }
     }
 
@@ -292,7 +292,7 @@ namespace PD2ModelParser.Modelscript
 
         public override void Execute(ScriptState state)
         {
-            state.Log.Status($"Creating object {Name}");
+            ScriptState.Log.Status($"Creating object {Name}");
             var extant = state.Data.SectionsOfType<S.Object3D>()
                 .Where(i => i.Name == Name)
                 .FirstOrDefault();
@@ -306,11 +306,7 @@ namespace PD2ModelParser.Modelscript
             {
                 parent = state.Data.SectionsOfType<S.Object3D>()
                     .Where(i => i.Name == Parent)
-                    .FirstOrDefault();
-                if (parent == null)
-                {
-                    throw new Exception($"Cannot find Object3D named \"{Parent}\" to use as a parent for {Name}");
-                }
+                    .FirstOrDefault() ?? throw new Exception($"Cannot find Object3D named \"{Parent}\" to use as a parent for {Name}");
             }
 
             var obj = new S.Object3D(Name, null);
@@ -333,24 +329,15 @@ namespace PD2ModelParser.Modelscript
 
         public override void Execute(ScriptState state)
         {
-            state.Log.Status($"Modifying object {Name}");
+            ScriptState.Log.Status($"Modifying object {Name}");
             var extant = state.Data.SectionsOfType<S.Object3D>()
                 .Where(i => i.Name == Name)
-                .FirstOrDefault();
-            if (extant == null)
-            {
-                throw new Exception($"Cannot modify object {Name} Does not exist.");
-            }
-
+                .FirstOrDefault() ?? throw new Exception($"Cannot modify object {Name} Does not exist.");
             if (SetParent && Parent != null)
             {
                 var parent = state.Data.SectionsOfType<S.Object3D>()
                     .Where(i => i.Name == Parent)
-                    .FirstOrDefault();
-                if (parent == null)
-                {
-                    throw new Exception($"Cannot find Object3D named \"{Parent}\" to use as a parent for {Name}");
-                }
+                    .FirstOrDefault() ?? throw new Exception($"Cannot find Object3D named \"{Parent}\" to use as a parent for {Name}");
                 extant.SetParent(parent);
             }
             else if (SetParent)
@@ -383,12 +370,8 @@ namespace PD2ModelParser.Modelscript
         {
             var source = state.Data.SectionsOfType<S.Model>()
                     .Where(i => i.Name == Source)
-                    .FirstOrDefault();
-            if(source == null)
-            {
-                throw new Exception($"Source model {Source} not found");
-            }
-            if(source.version != 3)
+                    .FirstOrDefault() ?? throw new Exception($"Source model {Source} not found");
+            if (source.Version != 3)
             {
                 throw new Exception($"Can't duplicate non-v3 model {Source}");
             }
@@ -437,13 +420,14 @@ namespace PD2ModelParser.Modelscript
             var newModel = new S.Model(Destination,
                 (uint)newTopoIp.Topology.facelist.Count,
                 newPgp.DieselGeometry.vert_count,
-                newPgp, newTopoIp, newMatGroup, source.Parent);
-
-            newModel.version = source.version;
+                newPgp, newTopoIp, newMatGroup, source.Parent)
+            {
+                Version = source.Version
+            };
             newModel.RenderAtoms.AddRange(source.RenderAtoms.Select(i => i.Clone()));
-            newModel.lightset_ID = source.lightset_ID;
-            newModel.properties_bitmap = source.properties_bitmap;
-            newModel.unknown13 = source.unknown13;
+            newModel.Lightset_ID = source.Lightset_ID;
+            newModel.Properties_bitmap = source.Properties_bitmap;
+            newModel.BoundingInt = source.BoundingInt;
             newModel.SkinBones = source.SkinBones;
 
             newModel.UpdateBounds();
@@ -461,13 +445,8 @@ namespace PD2ModelParser.Modelscript
         {
             var target = state.Data.SectionsOfType<S.Object3D>()
                     .Where(i => i.Name == Target)
-                    .FirstOrDefault();
-            if (target == null)
-            {
-                throw new Exception($"Object to delete not found: {Target}");
-            }
-
-            if(!Recurse && target.children.Count != 0)
+                    .FirstOrDefault() ?? throw new Exception($"Object to delete not found: {Target}");
+            if (!Recurse && target.children.Count != 0)
             {
                 throw new Exception($"Object {Target} has children but Recurse=\"false\" ");
             }

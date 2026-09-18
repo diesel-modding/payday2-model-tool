@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using System.Windows.Forms.Layout;
+using PD2ModelParser.Importers;
 using PD2ModelParser.Modelscript;
 
 namespace PD2ModelParser.UI
@@ -12,7 +13,7 @@ namespace PD2ModelParser.UI
     public partial class ExportPanel : UserControl
     {
         private FullModelData model;
-        private ExportLayoutEngine layout = new ExportLayoutEngine();
+        private readonly ExportLayoutEngine layout = new();
         public override LayoutEngine LayoutEngine => layout;
 
         public ExportPanel()
@@ -24,7 +25,7 @@ namespace PD2ModelParser.UI
 
             // Fill in the actual list of exporters
             formatBox.Items.Clear();
-            formatBox.Items.AddRange(FileTypeInfo.Types.Where(i => i.CanExport).ToArray());
+            formatBox.Items.AddRange([.. FileTypeInfo.Types.Where(i => i.CanExport)]);
             formatBox.DisplayMember = nameof(FileTypeInfo.FormatName);
             // Select the default item, since for whatever reason we can't
             // do that in the designer.
@@ -34,7 +35,7 @@ namespace PD2ModelParser.UI
 
         }
 
-        private void inputFileBox_FileSelected(object sender, EventArgs e)
+        private void InputFileBox_FileSelected(object sender, EventArgs e)
         {
             if (inputFileBox.Selected == null)
             {
@@ -44,17 +45,17 @@ namespace PD2ModelParser.UI
             exportBttn.Enabled = true;
         }
 
-        private void exportBttn_Click(object sender, EventArgs e)
+        private void ExportBttn_Click(object sender, EventArgs e)
         {
-            var script = new List<IScriptItem>();
-
-            script.Add(new LoadModel() { File = inputFileBox.Selected });
+            var script = new List<IScriptItem>
+            {
+                new LoadModel() { File = inputFileBox.Selected }
+            };
             model = ModelReader.Open(inputFileBox.Selected);
 
             var exportCmd = new Export();
 
-            var type = formatBox.SelectedItem as FileTypeInfo;
-            if(type == null)
+            if (formatBox.SelectedItem is not FileTypeInfo type)
             {
                 MessageBox.Show("Unknown format '{format}'");
                 return;
@@ -67,7 +68,7 @@ namespace PD2ModelParser.UI
             MessageBox.Show($"Successfully exported model {inputFileBox.Selected.Split('\\').Last()} (placed in the input model folder)");
         }
 
-        class ExportLayoutEngine : LayoutEngine
+        private class ExportLayoutEngine : LayoutEngine
         {
 
             public override bool Layout(object sender, LayoutEventArgs e)

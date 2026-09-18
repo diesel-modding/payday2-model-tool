@@ -1,4 +1,5 @@
-﻿using System;
+﻿using PD2ModelParser.Misc;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -7,7 +8,7 @@ using System.Numerics;
 namespace PD2ModelParser.Sections
 {
     [ModelFileSection(Tags.linearVector3Controller_tag)]
-    class LinearVector3Controller : AbstractSection, ISection, IHashNamed, IAnimationController<Vector3>
+    internal class LinearVector3Controller : AbstractSection, ISection, IHashNamed, IAnimationController<Vector3>
     {
         public UInt32 size;
 
@@ -31,7 +32,7 @@ namespace PD2ModelParser.Sections
 
         public uint Unknown1 { get; set; }
         public float KeyframeLength { get; set; }
-        public IList<Keyframe<Vector3>> Keyframes { get; set; } = new List<Keyframe<Vector3>>();
+        public IList<Keyframe<Vector3>> Keyframes { get; set; } = [];
 
         public byte[] remaining_data = null;
 

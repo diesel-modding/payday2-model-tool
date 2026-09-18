@@ -1,10 +1,11 @@
-﻿using System;
+﻿using PD2ModelParser.Misc;
+using System;
 using System.IO;
 
 namespace PD2ModelParser.Sections
 {
     [ModelFileSection(Tags.author_tag)]
-    class Author : AbstractSection, ISection, IHashNamed
+    internal class Author : AbstractSection, ISection, IHashNamed
     {
         public UInt32 size;
 

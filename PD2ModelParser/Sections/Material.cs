@@ -16,14 +16,14 @@ namespace PD2ModelParser.Sections
     }
 
     [ModelFileSection(Tags.material_tag)]
-    class Material : AbstractSection, ISection, IHashNamed
+    internal class Material : AbstractSection, ISection, IHashNamed
     {
         public UInt32 size;
 
         public HashName HashName { get; set; } //Hashed material name (see hashlist.txt)
         public byte[] skipped;
         public uint count;
-        public List<MaterialItem> items = new List<MaterialItem>();
+        public List<MaterialItem> items = [];
 
         public byte[] remaining_data = null;
 
@@ -47,9 +47,11 @@ namespace PD2ModelParser.Sections
 
             for (int x = 0; x < this.count; x++)
             {
-                MaterialItem item = new MaterialItem();
-                item.unknown1 = instream.ReadUInt32();
-                item.unknown2 = instream.ReadUInt32();
+                MaterialItem item = new()
+                {
+                    unknown1 = instream.ReadUInt32(),
+                    unknown2 = instream.ReadUInt32()
+                };
                 this.items.Add(item);
             }
 

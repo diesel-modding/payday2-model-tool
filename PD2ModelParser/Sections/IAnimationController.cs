@@ -18,16 +18,10 @@ namespace PD2ModelParser.Sections
         IList<Keyframe<TValue>> Keyframes { get; set; }
     }
 
-    public class Keyframe<T>
+    public class Keyframe<T>(float ts, T v)
     {
-        public float Timestamp { get; set; }
-        public T Value { get; set; }
-
-        public Keyframe(float ts, T v)
-        {
-            Timestamp = ts;
-            Value = v;
-        }
+        public float Timestamp { get; set; } = ts;
+        public T Value { get; set; } = v;
 
         public override string ToString() => $"Timestamp={Timestamp} Value={Value}";
     }

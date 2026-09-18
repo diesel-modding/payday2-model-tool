@@ -11,7 +11,7 @@ namespace PD2ModelParser.UI
 {
     public partial class ObjectsPanel : UserControl
     {
-        private readonly Dictionary<uint, TreeNode> nodes = new Dictionary<uint, TreeNode>();
+        private readonly Dictionary<uint, TreeNode> nodes = [];
         private TreeNode menuTarget;
         private FullModelData data;
 
@@ -63,27 +63,27 @@ namespace PD2ModelParser.UI
             ReconcileChildNodes(rootinspector, treeView.Nodes);
         }
 
-        private void showScriptChanges_CheckedChanged(object sender, EventArgs e)
+        private void ShowScriptChanges_CheckedChanged(object sender, EventArgs e)
         {
             Reload();
         }
 
-        private void btnReload_Click(object sender, EventArgs e)
+        private void BtnReload_Click(object sender, EventArgs e)
         {
             Reload();
         }
 
-        private void fileBrowserControl2_FileSelected(object sender, EventArgs e)
+        private void FileBrowserControl2_FileSelected(object sender, EventArgs e)
         {
             Reload();
         }
 
-        private void fileBrowserControl1_FileSelected(object sender, EventArgs e)
+        private void FileBrowserControl1_FileSelected(object sender, EventArgs e)
         {
             Reload();
         }
 
-        private void treeView_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
+        private void TreeView_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
         {
             propertyGrid1.SelectedObject = e.Node.Tag;
             // Only process right clicks
@@ -97,7 +97,7 @@ namespace PD2ModelParser.UI
             menuTarget = e.Node;
         }
 
-        private void optProperties_Click(object sender, EventArgs e)
+        private void OptProperties_Click(object sender, EventArgs e)
         {
             var obj = menuTarget.Tag;
 
@@ -118,7 +118,7 @@ namespace PD2ModelParser.UI
         /// actually NEED to be 
         /// </para>
         /// </remarks>
-        private void ReconcileChildNodes(Inspector.IInspectorNode modelNode, TreeNodeCollection viewNodes)
+        private static void ReconcileChildNodes(Inspector.IInspectorNode modelNode, TreeNodeCollection viewNodes)
         {
             var newModels = modelNode.GetChildren().ToList();
 
@@ -132,7 +132,7 @@ namespace PD2ModelParser.UI
                 viewNodes.RemoveByKey(i);
             }
 
-            List<TreeNode> toAdd = new List<TreeNode>(newKeys.Count);
+            List<TreeNode> toAdd = [with(newKeys.Count)];
             foreach(var i in newModels)
             {
                 TreeNode[] mn = viewNodes.Find(i.Key, false);
@@ -144,10 +144,10 @@ namespace PD2ModelParser.UI
                 n.Text = i.Label;
                 ReconcileChildNodes(i, n.Nodes);
             }
-            viewNodes.AddRange(toAdd.ToArray());
+            viewNodes.AddRange([.. toAdd]);
         }
 
-        private void btnSave_Click(object sender, EventArgs e)
+        private void BtnSave_Click(object sender, EventArgs e)
         {
             var script = new List<Modelscript.IScriptItem>()
             {

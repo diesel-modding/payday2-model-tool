@@ -79,7 +79,7 @@ namespace PD2ModelParser.UI
             showScriptChanges.TabIndex = 4;
             showScriptChanges.Text = "Show Script Changes";
             showScriptChanges.UseVisualStyleBackColor = true;
-            showScriptChanges.CheckedChanged += showScriptChanges_CheckedChanged;
+            showScriptChanges.CheckedChanged += ShowScriptChanges_CheckedChanged;
             // 
             // btnReload
             // 
@@ -91,7 +91,7 @@ namespace PD2ModelParser.UI
             btnReload.TabIndex = 5;
             btnReload.Text = "Reload";
             btnReload.UseVisualStyleBackColor = true;
-            btnReload.Click += btnReload_Click;
+            btnReload.Click += BtnReload_Click;
             // 
             // treeView
             // 
@@ -101,7 +101,7 @@ namespace PD2ModelParser.UI
             treeView.Name = "treeView";
             treeView.Size = new System.Drawing.Size(437, 283);
             treeView.TabIndex = 6;
-            treeView.NodeMouseClick += treeView_NodeMouseClick;
+            treeView.NodeMouseClick += TreeView_NodeMouseClick;
             // 
             // propertyGrid1
             // 
@@ -122,7 +122,7 @@ namespace PD2ModelParser.UI
             scriptFile.Name = "scriptFile";
             scriptFile.Size = new System.Drawing.Size(590, 27);
             scriptFile.TabIndex = 1;
-            scriptFile.FileSelected += fileBrowserControl2_FileSelected;
+            scriptFile.FileSelected += FileBrowserControl2_FileSelected;
             // 
             // modelFile
             // 
@@ -133,7 +133,7 @@ namespace PD2ModelParser.UI
             modelFile.Name = "modelFile";
             modelFile.Size = new System.Drawing.Size(590, 27);
             modelFile.TabIndex = 0;
-            modelFile.FileSelected += fileBrowserControl1_FileSelected;
+            modelFile.FileSelected += FileBrowserControl1_FileSelected;
             // 
             // splitContainer1
             // 
@@ -164,7 +164,7 @@ namespace PD2ModelParser.UI
             btnSave.TabIndex = 9;
             btnSave.Text = "Save (in place)";
             btnSave.UseVisualStyleBackColor = true;
-            btnSave.Click += btnSave_Click;
+            btnSave.Click += BtnSave_Click;
             // 
             // ObjectsPanel
             // 

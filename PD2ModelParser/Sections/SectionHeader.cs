@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 
-namespace PD2ModelParser
+namespace PD2ModelParser.Sections
 {
     public class SectionHeader
     {

@@ -89,9 +89,9 @@ namespace PD2ModelParser
 
     public abstract class BaseLogger : ILogger
     {
-        protected string GetCallerName(int level)
+        protected static string GetCallerName(int level)
         {
-            StackFrame frame = new StackFrame(level);
+            StackFrame frame = new(level);
             MethodBase method = frame.GetMethod();
             return $"{method.DeclaringType?.Name}.{method.Name}";
         }

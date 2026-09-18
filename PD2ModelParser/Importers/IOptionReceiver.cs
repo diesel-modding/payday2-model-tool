@@ -11,7 +11,7 @@ namespace PD2ModelParser.Importers
 
     public class GenericOptionReceiver : IOptionReceiver
     {
-        public Dictionary<string, string> Options { get; private set; } = new Dictionary<string, string>();
+        public Dictionary<string, string> Options { get; private set; } = [];
         public void AddOption(string name, string value) => Options.Add(name, value);
         public string GetOption(string name) => Options.GetValueOrDefault(name, null);
     }

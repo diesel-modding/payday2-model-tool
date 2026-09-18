@@ -6,7 +6,7 @@ using System.Linq;
 
 namespace PD2ModelParser.Exporters
 {
-    static class DieselExporter
+    internal static class DieselExporter
     {
         public static void ExportFile(FullModelData data, string path)
         {
@@ -14,12 +14,12 @@ namespace PD2ModelParser.Exporters
             //you edit items in the parsed_sections, they will get read and exported
 
             //Sort the sections
-            List<Animation> animation_sections = new List<Animation>();
-            List<Author> author_sections = new List<Author>();
-            List<ISection> material_sections = new List<ISection>();
-            List<Object3D> object3D_sections = new List<Object3D>();
-            List<Model> model_sections = new List<Model>();
-            List<ISection> other_sections = new List<ISection>();
+            List<Animation> animation_sections = [];
+            List<Author> author_sections = [];
+            List<ISection> material_sections = [];
+            List<Object3D> object3D_sections = [];
+            List<Model> model_sections = [];
+            List<ISection> other_sections = [];
 
             // Discard the old hashlist
             // Note that we use ToArray, which allows us to mutate the list without breaking anything
@@ -27,12 +27,12 @@ namespace PD2ModelParser.Exporters
                 if (header.type == Tags.custom_hashlist_tag)
                     data.RemoveSection(header.id);
 
-            CustomHashlist hashlist = new CustomHashlist();
+            CustomHashlist hashlist = new();
             data.AddSection(hashlist);
 
             foreach (SectionHeader sectionheader in data.sections)
             {
-                if (!data.parsed_sections.Keys.Contains(sectionheader.id))
+                if (!data.parsed_sections.ContainsKey(sectionheader.id))
                 {
                     Log.Default.Warn($"BUG: SectionHeader with id {sectionheader.id} has no counterpart in parsed_sections");
                     continue;
@@ -95,38 +95,33 @@ namespace PD2ModelParser.Exporters
                         .ToList();
 
             //after each section, you go back and enter it's new size
-            using (FileStream fs = new FileStream(path, FileMode.Create, FileAccess.Write))
+            using FileStream fs = new(path, FileMode.Create, FileAccess.Write);
+            using BinaryWriter bw = new(fs);
+
+            bw.Write(0x42444F44u); // DODB
+            bw.Write(1u);
+            bw.Write((UInt32)0);   // Filesize placeholder
+
+            int sectionCount = data.sections.Count;
+            bw.Write(sectionCount);
+
+            foreach (var sec in sections_to_write)
             {
-                using (BinaryWriter bw = new BinaryWriter(fs))
-                {
-
-                    bw.Write(0x42444F44u); // DODB
-                    bw.Write(1u);
-                    bw.Write((UInt32)0);   // Filesize placeholder
-
-                    int sectionCount = data.sections.Count;
-                    bw.Write(sectionCount);
-
-                    foreach (var sec in sections_to_write)
-                    {
-                        sec.StreamWrite(bw);
-                    }
-
-                    if(sections_to_write.Count != sectionCount)
-                    {
-                        Log.Default.Warn($"BUG : There were {sectionCount} sections to write but {sections_to_write.Count} were written");
-                    }
-
-                    if (data.leftover_data != null)
-                        bw.Write(data.leftover_data);
-
-                    long finalLength = fs.Length;
-                    
-                    fs.Position = 8;
-                    bw.Write((UInt32)finalLength);
-
-                }
+                sec.StreamWrite(bw);
             }
+
+            if (sections_to_write.Count != sectionCount)
+            {
+                Log.Default.Warn($"BUG : There were {sectionCount} sections to write but {sections_to_write.Count} were written");
+            }
+
+            if (data.leftover_data != null)
+                bw.Write(data.leftover_data);
+
+            long finalLength = fs.Length;
+
+            fs.Position = 8;
+            bw.Write((UInt32)finalLength);
         }
     }
 }

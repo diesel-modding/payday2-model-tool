@@ -8,11 +8,11 @@ using System.Globalization;
 
 namespace PD2ModelParser.Inspector
 {
-    class HashNameConverter : ExpandableObjectConverter
+    internal class HashNameConverter : ExpandableObjectConverter
     {
         public override object ConvertTo(ITypeDescriptorContext context, CultureInfo culture, object value, Type destinationType)
         {
-            if(destinationType != typeof(string) || !(value is HashName hn))
+            if(destinationType != typeof(string) || value is not HashName hn)
                 return base.ConvertTo(context, culture, value, destinationType);
 
             return hn.String;

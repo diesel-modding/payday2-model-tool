@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 namespace PD2ModelParser.Sections
 {
-    class BoneMappingItem
+    internal class BoneMappingItem
     {
-        public readonly List<UInt32> bones = new List<UInt32>();
+        public readonly List<UInt32> bones = [];
         public override string ToString()
         {
             string verts_string = (bones.Count == 0 ? "none" : "");
@@ -17,11 +17,11 @@ namespace PD2ModelParser.Sections
         }
     }
     [ModelFileSection(Tags.bones_tag)]
-    class Bones : AbstractSection, ISection
+    internal class Bones : AbstractSection, ISection
     {
         public UInt32 size;
 
-        public List<BoneMappingItem> bone_mappings { get; private set; } = new List<BoneMappingItem>();
+        public List<BoneMappingItem> Bone_mappings { get; private set; } = [];
 
         public byte[] remaining_data = null;
         internal Bones(){ }
@@ -37,17 +37,17 @@ namespace PD2ModelParser.Sections
             uint count = instream.ReadUInt32();
             for (int x = 0; x < count; x++)
             {
-                BoneMappingItem bone_mapping_item = new BoneMappingItem();
+                BoneMappingItem bone_mapping_item = new();
                 uint bone_count = instream.ReadUInt32();
                 for (int y = 0; y < bone_count; y++) bone_mapping_item.bones.Add(instream.ReadUInt32());
-                bone_mappings.Add(bone_mapping_item);
+                Bone_mappings.Add(bone_mapping_item);
             }
             this.remaining_data = null;
         }
         public override void StreamWriteData(BinaryWriter outstream)
         {
-            outstream.Write(bone_mappings.Count);
-            foreach (BoneMappingItem bone in this.bone_mappings)
+            outstream.Write(Bone_mappings.Count);
+            foreach (BoneMappingItem bone in this.Bone_mappings)
             {
                 outstream.Write(bone.bones.Count);
                 foreach (UInt32 vert in bone.bones)
@@ -57,8 +57,8 @@ namespace PD2ModelParser.Sections
         }
         public override string ToString()
         {
-            string bones_string = (bone_mappings.Count == 0 ? "none" : "");
-            foreach (BoneMappingItem bone in bone_mappings)
+            string bones_string = (Bone_mappings.Count == 0 ? "none" : "");
+            foreach (BoneMappingItem bone in Bone_mappings)
             {
                 bones_string += bone + ", ";
             }

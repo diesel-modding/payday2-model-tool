@@ -4,6 +4,7 @@ using System.IO;
 using System.ComponentModel;
 using System.Linq;
 using System.Numerics;
+using PD2ModelParser.Misc;
 
 namespace PD2ModelParser.Sections
 {
@@ -15,7 +16,7 @@ namespace PD2ModelParser.Sections
         [Category("Object3D")]
         [DisplayName("Name")]
         public HashName HashName { get; set; } //Hashed object root point name (see hashlist.txt)
-        private Matrix4x4 _rotation = new Matrix4x4(); // 4x4 transform matrix - for translation/scale too
+        private Matrix4x4 _rotation = new(); // 4x4 transform matrix - for translation/scale too
 
         /// <summary>
         /// Animation controllers affecting this object.
@@ -50,7 +51,7 @@ namespace PD2ModelParser.Sections
         /// </list>
         /// </remarks>
         [Category("Object3D")]
-        public List<IAnimationController> Animations { get; private set; } = new List<IAnimationController>();
+        public List<IAnimationController> Animations { get; private set; } = [];
 
         [Category("Object3D")]
         public Matrix4x4 Transform
@@ -64,7 +65,7 @@ namespace PD2ModelParser.Sections
         }
 
         [Browsable(false)]
-        public uint parentID => Parent?.SectionId ?? 0;
+        public uint ParentID => Parent?.SectionId ?? 0;
 
         public byte[] remaining_data = null;
 
@@ -79,22 +80,19 @@ namespace PD2ModelParser.Sections
         [TypeConverter(typeof(Inspector.Object3DReferenceConverter))]
         public Object3D Parent { get; set; }
 
-        public List<Object3D> children = new List<Object3D>();
+        public List<Object3D> children = [];
 
         public void SetParent(Object3D newParent)
         {
             var oldParent = Parent;
-            if(oldParent != null)
-            {
-                oldParent.children.Remove(this);
-            }
+            oldParent?.children.Remove(this);
             if (newParent == this)
             {
                 throw new Exception($"Object {Name}({SectionId}) attempted to have itself as parent");
             }
-            else if (newParent != null)
+            else
             {
-                newParent.children.Add(this);
+                newParent?.children.Add(this);
             }
             Parent = newParent;
         }
@@ -139,7 +137,7 @@ namespace PD2ModelParser.Sections
                 instream.ReadUInt64(); // Skip eight bytes, as per PD2
                 animation_ids.Add(item);
             }
-            postloadCallbacks.Add((self, sections) => Animations.AddRange(animation_ids.Select(i => sections.ContainsKey(i) ? (IAnimationController)sections[i] : null)));
+            postloadCallbacks.Add((self, sections) => Animations.AddRange(animation_ids.Select(i => sections.TryGetValue(i, out ISection value) ? (IAnimationController)value : null)));
 
             // In Object3D::load
             Matrix4x4 transform = instream.ReadMatrix();
@@ -169,7 +167,7 @@ namespace PD2ModelParser.Sections
             outstream.Write(this.Transform.M41); // Write the position out again, as for some reason
             outstream.Write(this.Transform.M42); // it's not stored in the main matrix
             outstream.Write(this.Transform.M43);
-            outstream.Write(this.parentID);
+            outstream.Write(this.ParentID);
 
             if (this.remaining_data != null)
                 outstream.Write(this.remaining_data);
@@ -180,7 +178,7 @@ namespace PD2ModelParser.Sections
             Matrix4x4.Decompose(this.Transform, out Vector3 scale, out Quaternion rot, out _);
             return base.ToString() +
                    $" size: {this.size} HashName: {this.HashName} animations: {this.Animations.Count}" +
-                   $" mat.scale: {scale} mat.rotation: {rot} Parent ID: ${this.parentID}" +
+                   $" mat.scale: {scale} mat.rotation: {rot} Parent ID: ${this.ParentID}" +
                    (remaining_data != null ? " REMAINING DATA! " + remaining_data.Length + " bytes" : "");
         }
 

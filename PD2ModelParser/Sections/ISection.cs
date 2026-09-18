@@ -80,7 +80,7 @@ namespace PD2ModelParser.Sections
         }
 
         protected delegate void PostLoadCallback(ISection self, Dictionary<uint, ISection> sections);
-        protected List<PostLoadCallback> postloadCallbacks = new List<PostLoadCallback>();
+        protected List<PostLoadCallback> postloadCallbacks = [];
 
         protected void PostLoadRef<TRef>(uint id, Action<TRef> setter, [CallerFilePath] string fp = "(unknown)", [CallerLineNumber] int linenum = 0) where TRef: class
         {
@@ -127,8 +127,8 @@ namespace PD2ModelParser.Sections
 
     public class SectionMetaInfo
     {
-        private static Dictionary<uint, SectionMetaInfo> byTag;
-        private static Dictionary<Type, SectionMetaInfo> byType;
+        private static readonly Dictionary<uint, SectionMetaInfo> byTag;
+        private static readonly Dictionary<Type, SectionMetaInfo> byType;
 
         static SectionMetaInfo()
         {
@@ -150,8 +150,8 @@ namespace PD2ModelParser.Sections
         public static SectionMetaInfo For(Type t) => byType[t];
         public static IEnumerable<SectionMetaInfo> All() => byTag.Values;
 
-        private System.Reflection.ConstructorInfo deserialiseConstructor;
-        private Func<BinaryReader, SectionHeader, ISection> deserialiseDelegate;
+        private readonly System.Reflection.ConstructorInfo deserialiseConstructor;
+        private readonly Func<BinaryReader, SectionHeader, ISection> deserialiseDelegate;
         public bool ShowInInspectorRoot { get; private set; }
         public Type DeclaredRootInspectorType { get; private set; }
 
@@ -174,14 +174,13 @@ namespace PD2ModelParser.Sections
             }
             else
             {
-                inspectortype = typeof(Inspector.AllSectionsNode<>).MakeGenericType(new Type[] { this.Type });
+                inspectortype = typeof(Inspector.AllSectionsNode<>).MakeGenericType([this.Type]);
             }
-            constructor = inspectortype.GetConstructor(new Type[] { typeof(FullModelData) });
-            if (constructor == null) { throw new Exception($"The root inspector type {inspectortype.FullName} does not have a suitable constructor"); }
-            return (Inspector.IInspectorNode)constructor.Invoke(new object[] { data });
+            constructor = inspectortype.GetConstructor([typeof(FullModelData)]) ?? throw new Exception($"The root inspector type {inspectortype.FullName} does not have a suitable constructor");
+            return (Inspector.IInspectorNode)constructor.Invoke([data]);
         }
 
-        SectionMetaInfo(Type t)
+        private SectionMetaInfo(Type t)
         {
             this.Type = t;
 
@@ -190,9 +189,9 @@ namespace PD2ModelParser.Sections
             this.DeclaredRootInspectorType = idAttr.RootInspectorNode;
             this.ShowInInspectorRoot = idAttr.ShowInInspectorRoot;
 
-            this.deserialiseConstructor = t.GetConstructor(new Type[] { typeof(BinaryReader), typeof(SectionHeader) });
+            this.deserialiseConstructor = t.GetConstructor([typeof(BinaryReader), typeof(SectionHeader)]);
 
-            var dm = new DynamicMethod("ConstructSection_" + t.Name, t, new Type[] { typeof(BinaryReader), typeof(SectionHeader) }, typeof(AbstractSection).Module);
+            var dm = new DynamicMethod("ConstructSection_" + t.Name, t, [typeof(BinaryReader), typeof(SectionHeader)], typeof(AbstractSection).Module);
             var dmil = dm.GetILGenerator();
             dmil.Emit(OpCodes.Ldarg_0);
             dmil.Emit(OpCodes.Ldarg_1);
@@ -203,14 +202,9 @@ namespace PD2ModelParser.Sections
     }
 
     [System.AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-    sealed class ModelFileSectionAttribute : Attribute
+    internal sealed class ModelFileSectionAttribute(uint tag) : Attribute
     {
-        public ModelFileSectionAttribute(uint tag)
-        {
-            Tag = tag;
-        }
-
-        public uint Tag { get; private set; }
+        public uint Tag { get; private set; } = tag;
         public Type RootInspectorNode { get; set; }
         public bool ShowInInspectorRoot { get; set; } = true;
     }

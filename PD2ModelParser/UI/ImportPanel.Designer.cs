@@ -78,7 +78,7 @@ namespace PD2ModelParser.UI {
             createNewModel.TabIndex = 2;
             createNewModel.Text = "Or create a new model";
             createNewModel.UseVisualStyleBackColor = true;
-            createNewModel.CheckedChanged += createNewModel_CheckedChanged;
+            createNewModel.CheckedChanged += CreateNewModel_CheckedChanged;
             // 
             // labelSaveTo
             // 
@@ -135,7 +135,7 @@ namespace PD2ModelParser.UI {
             convert.TabIndex = 9;
             convert.Text = "Convert";
             convert.UseVisualStyleBackColor = true;
-            convert.Click += convert_Click;
+            convert.Click += Convert_Click;
             // 
             // createNewObjectsBox
             // 
@@ -192,7 +192,7 @@ namespace PD2ModelParser.UI {
             scriptFile.Name = "scriptFile";
             scriptFile.Size = new System.Drawing.Size(579, 27);
             scriptFile.TabIndex = 14;
-            scriptFile.FileSelected += scriptFile_FileSelected;
+            scriptFile.FileSelected += ScriptFile_FileSelected;
             // 
             // patternUVFile
             // 
@@ -248,7 +248,7 @@ namespace PD2ModelParser.UI {
             baseModelFileBrowser.Name = "baseModelFileBrowser";
             baseModelFileBrowser.Size = new System.Drawing.Size(579, 27);
             baseModelFileBrowser.TabIndex = 0;
-            baseModelFileBrowser.FileSelected += baseModelFileBrowser_FileSelected;
+            baseModelFileBrowser.FileSelected += BaseModelFileBrowser_FileSelected;
             // 
             // importTransformsBox
             // 

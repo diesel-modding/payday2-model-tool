@@ -1,3 +1,4 @@
+using PD2ModelParser.Importers;
 using PD2ModelParser.Sections;
 using System;
 using System.Collections.Generic;
@@ -10,9 +11,9 @@ namespace PD2ModelParser.UI
 {
     public partial class ImportPanel : UserControl
     {
-        class ImportPanelLayoutEngine : LayoutEngine
+        private class ImportPanelLayoutEngine : LayoutEngine
         {
-            struct TableRow {
+            private struct TableRow {
                 public Label label;
                 public Control field;
                 public int labelWidth;
@@ -32,31 +33,26 @@ namespace PD2ModelParser.UI
                 }
             }
 
-            TableRow[] rows;
-            int maxLabelWidth;
-
-            public ImportPanelLayoutEngine(ImportPanel panel)
-            {
-                
-            }
+            private TableRow[] rows;
+            private int maxLabelWidth;
 
             private void InitialAnalysis(ImportPanel panel)
             {   
                 if(this.rows != null) { return; }
 
-                this.rows = new TableRow[] {
-                    new TableRow(panel.labelSelBaseModel, panel.baseModelFileBrowser),
-                    new TableRow(null, panel.createNewModel),
-                    new TableRow(panel.lblScript, panel.scriptFile),
-                    new TableRow(panel.labelObj, panel.objectFile),
-                    new TableRow(panel.labelPatternUV, panel.patternUVFile),
-                    new TableRow(panel.labelAnimations, panel.animationFiles),
-                    new TableRow(null, panel.createNewObjectsBox),
-                    new TableRow(null, panel.importTransformsBox),
-                    new TableRow(panel.labelRootPoint, panel.rootPoints),
-                    new TableRow(null, panel.labelRootPointHint),
-                    new TableRow(panel.labelSaveTo, panel.outputBox)
-                };
+                this.rows = [
+                    new(panel.labelSelBaseModel, panel.baseModelFileBrowser),
+                    new(null, panel.createNewModel),
+                    new(panel.lblScript, panel.scriptFile),
+                    new(panel.labelObj, panel.objectFile),
+                    new(panel.labelPatternUV, panel.patternUVFile),
+                    new(panel.labelAnimations, panel.animationFiles),
+                    new(null, panel.createNewObjectsBox),
+                    new(null, panel.importTransformsBox),
+                    new(panel.labelRootPoint, panel.rootPoints),
+                    new(null, panel.labelRootPointHint),
+                    new(panel.labelSaveTo, panel.outputBox)
+                ];
                 
                 this.maxLabelWidth = this.rows.Select(i => i.labelWidth).Max();
 
@@ -117,13 +113,13 @@ namespace PD2ModelParser.UI
             //}
         }
 
-        private List<RootPointItem> root_point_items = new List<RootPointItem>();
-        private ImportPanelLayoutEngine layout;
+        private readonly List<RootPointItem> root_point_items = [];
+        private readonly ImportPanelLayoutEngine layout;
         public override LayoutEngine LayoutEngine => layout;
 
         public ImportPanel()
         {
-            layout = new ImportPanelLayoutEngine(this);
+            layout = new ImportPanelLayoutEngine();
             InitializeComponent();
             baseModelFileBrowser.Filter = "Diesel Model Files (*.model)|*.model";
             scriptFile.Filter = "Model Script Files (*.mscript)|*.mscript";
@@ -139,14 +135,14 @@ namespace PD2ModelParser.UI
             UpdateRootPointBox();
         }
 
-        private void createNewModel_CheckedChanged(object sender, EventArgs e)
+        private void CreateNewModel_CheckedChanged(object sender, EventArgs e)
         {
             baseModelFileBrowser.Enabled = !createNewModel.Checked;
             createNewObjectsBox.Enabled = !createNewModel.Checked;
             importTransformsBox.Enabled = !createNewModel.Checked;
         }
 
-        private void convert_Click(object sender, EventArgs e)
+        private void Convert_Click(object sender, EventArgs e)
         {
 
             if (baseModelFileBrowser.Selected == null && !createNewModel.Checked)
@@ -222,7 +218,7 @@ namespace PD2ModelParser.UI
             MessageBox.Show("Model generated successfully");
         }
 
-        private void baseModelFileBrowser_FileSelected(object sender, EventArgs e)
+        private void BaseModelFileBrowser_FileSelected(object sender, EventArgs e)
         {
             UpdateRootPointBox();
         }
@@ -278,7 +274,7 @@ namespace PD2ModelParser.UI
                         ulong hashname = reader.ReadUInt64();
                         string name = StaticStorage.hashindex.GetString(hashname);
 
-                        RootPointItem item = new RootPointItem(name, header.id);
+                        RootPointItem item = new(name, header.id);
                         root_point_items.Add(item);
 
                         Log.Default.Debug("Scanning for rootpoint: {0}", name);
@@ -292,20 +288,14 @@ namespace PD2ModelParser.UI
             }
 
             rootPoints.Items.Clear();
-            rootPoints.Items.AddRange(root_point_items.ToArray());
+            rootPoints.Items.AddRange([.. root_point_items]);
             rootPoints.SelectedIndex = new_index;
         }
 
-        private class RootPointItem
+        private class RootPointItem(string name, uint id)
         {
-            public readonly string Name;
-            public readonly uint Id;
-
-            public RootPointItem(string name, uint id)
-            {
-                Name = name;
-                Id = id;
-            }
+            public readonly string Name = name;
+            public readonly uint Id = id;
 
             public override string ToString()
             {
@@ -313,7 +303,7 @@ namespace PD2ModelParser.UI
             }
         }
 
-        private void scriptFile_FileSelected(object sender, EventArgs e)
+        private void ScriptFile_FileSelected(object sender, EventArgs e)
         {
             UpdateRootPointBox();
         }

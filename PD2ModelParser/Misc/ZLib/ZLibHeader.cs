@@ -112,27 +112,21 @@ namespace PD2ModelParser.Misc.ZLib
         #region "Metodos privados"
         private void RefreshFCheck()
         {
-            byte byteFLG = 0x00;
-
-            byteFLG = (byte)(Convert.ToByte(this.FLevel) << 1);
+            byte byteFLG = (byte)(Convert.ToByte(FLevel) << 1);
             byteFLG |= Convert.ToByte(this.FDict);
 
             this.FCheck = Convert.ToByte(31 - Convert.ToByte((this.GetCMF() * 256 + byteFLG) % 31));
         }
         private byte GetCMF()
         {
-            byte byteCMF = 0x00;
-
-            byteCMF = (byte)(this.CompressionInfo << 4);
+            byte byteCMF = (byte)(CompressionInfo << 4);
             byteCMF |= (byte)(this.CompressionMethod);
 
             return byteCMF;
         }
         private byte GetFLG()
         {
-            byte byteFLG = 0x00;
-
-            byteFLG = (byte)(Convert.ToByte(this.FLevel) << 6);
+            byte byteFLG = (byte)(Convert.ToByte(FLevel) << 6);
             byteFLG |= (byte)(Convert.ToByte(this.FDict) << 5);
             byteFLG |= this.FCheck;
 
@@ -155,11 +149,11 @@ namespace PD2ModelParser.Misc.ZLib
         #region "Metodos estáticos"
         public static ZLibHeader DecodeHeader(int pCMF, int pFlag)
         {
-            ZLibHeader result = new ZLibHeader();
+            ZLibHeader result = new();
 
             //Ensure that parameters are bytes
-            pCMF = pCMF & 0x0FF;
-            pFlag = pFlag & 0x0FF;
+            pCMF &= 0x0FF;
+            pFlag &= 0x0FF;
 
             //Decode bytes
             result.CompressionInfo = Convert.ToByte((pCMF & 0xF0) >> 4);

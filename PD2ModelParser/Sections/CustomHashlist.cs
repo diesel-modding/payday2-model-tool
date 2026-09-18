@@ -7,7 +7,7 @@ namespace PD2ModelParser.Sections
     [ModelFileSection(Tags.custom_hashlist_tag)]
     public class CustomHashlist : AbstractSection, ISection
     {
-        public HashSet<string> Strings { get; } = new HashSet<string>();
+        public HashSet<string> Strings { get; } = [];
 
         public CustomHashlist()
         {
@@ -15,7 +15,7 @@ namespace PD2ModelParser.Sections
 
         public CustomHashlist(BinaryReader br, SectionHeader sh)
         {
-            ushort version = br.ReadUInt16();
+            _ = br.ReadUInt16();
 
             // The number of hash strings
             uint count = br.ReadUInt32();

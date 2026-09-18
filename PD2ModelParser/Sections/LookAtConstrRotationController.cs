@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace PD2ModelParser.Sections
 {
     [ModelFileSection(Tags.lookAtConstrRotationController)]
-    class LookAtConstrRotationController : AbstractSection, ISection, IPostLoadable, IHashNamed
+    internal class LookAtConstrRotationController : AbstractSection, ISection, IPostLoadable, IHashNamed
     {
         public HashName HashName { get; set; }
         public uint Unknown1 { get; set; }

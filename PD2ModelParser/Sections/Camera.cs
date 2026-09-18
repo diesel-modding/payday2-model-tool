@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace PD2ModelParser.Sections
 {
     [ModelFileSection(Tags.camera_tag, ShowInInspectorRoot = false)]
-    class Camera : Object3D, ISection
+    internal class Camera : Object3D, ISection
     {
         public float Unknown1 { get; set; }
         public float Unknown2 { get; set; }

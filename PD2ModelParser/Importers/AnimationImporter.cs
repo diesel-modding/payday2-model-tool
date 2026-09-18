@@ -6,9 +6,9 @@ using System.Linq;
 using System.Numerics;
 
 namespace PD2ModelParser.Importers {
-    class AnimationImporter {
+    internal class AnimationImporter {
         public static void Import(FullModelData fmd, string path) {
-            AnimationFile animationFile = new AnimationFile();
+            AnimationFile animationFile = new();
             animationFile.Read(path);
 
             foreach(AnimationFileObject animationObject in animationFile.Objects) {
@@ -36,8 +36,10 @@ namespace PD2ModelParser.Importers {
         }
 
         public static QuatLinearRotationController AddRotations(Object3D targetObject, IList<Keyframe<Quaternion>> keyframes) {
-            var quatLinearRotationController = new QuatLinearRotationController();
-            quatLinearRotationController.Keyframes = new List<Keyframe<Quaternion>>(keyframes);
+            var quatLinearRotationController = new QuatLinearRotationController
+            {
+                Keyframes = [.. keyframes]
+            };
             quatLinearRotationController.KeyframeLength = quatLinearRotationController.Keyframes.Max(kf => kf.Timestamp);
 
             if (targetObject.Animations.Count == 0) {
@@ -53,8 +55,10 @@ namespace PD2ModelParser.Importers {
         }
 
         public static LinearVector3Controller AddPositions(Object3D targetObject, IList<Keyframe<Vector3>> keyframes) {
-            LinearVector3Controller linearVector3Controller = new LinearVector3Controller();
-            linearVector3Controller.Keyframes = new List<Keyframe<Vector3>>(keyframes);
+            LinearVector3Controller linearVector3Controller = new()
+            {
+                Keyframes = [.. keyframes]
+            };
             linearVector3Controller.KeyframeLength = linearVector3Controller.Keyframes.Max(kf => kf.Timestamp);
 
             if (targetObject.Animations.Count == 0) {

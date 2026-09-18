@@ -3,19 +3,18 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using PD2ModelParser;
 
-namespace PD2Bundle
+namespace PD2ModelParser
 {
     public class KnownIndex
     {
-        private Dictionary<ulong, string> hashes = new Dictionary<ulong, string>();
+        private readonly Dictionary<ulong, string> hashes = [];
 
         public string GetString(ulong hash)
         {
-            if (hashes.ContainsKey(hash))
+            if (hashes.TryGetValue(hash, out string value))
             {
-                return hashes[hash];
+                return value;
             }
             return Convert.ToString(hash);
         }
@@ -25,11 +24,11 @@ namespace PD2Bundle
             return hashes.ContainsKey(hash);
         }
 
-        private void CheckCollision(Dictionary<ulong, string> item, ulong hash, string value)
+        private static void CheckCollision(Dictionary<ulong, string> item, ulong hash, string value)
         {
-            if ( item.ContainsKey(hash) && (item[hash] != value) )
+            if ( item.TryGetValue(hash, out string value1) && (value1 != value) )
             {
-                Log.Default.Warn("Hash collision: {0:x} : {1} == {2}", hash, item[hash], value);
+                Log.Default.Warn("Hash collision: {0:x} : {1} == {2}", hash, value1, value);
             }
         }
 
@@ -63,14 +62,12 @@ namespace PD2Bundle
         {
             try
             {
-                using (var sr = new StreamReader(filename))
+                using var sr = new StreamReader(filename);
+                string line = sr.ReadLine();
+                while (line != null)
                 {
-                    string line = sr.ReadLine();
-                    while (line != null)
-                    {
-                        Hint(line);
-                        line = sr.ReadLine();
-                    }
+                    Hint(line);
+                    line = sr.ReadLine();
                 }
                 return true;
             }
@@ -81,7 +78,7 @@ namespace PD2Bundle
             }
         }
 
-        private IEnumerable<string> GetHashfileNames()
+        private static IEnumerable<string> GetHashfileNames()
         {
             var exepath = System.Reflection.Assembly.GetEntryAssembly().Location;
             var exedir = Path.GetDirectoryName(exepath);
