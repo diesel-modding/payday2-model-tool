@@ -102,7 +102,7 @@ namespace PD2ModelParser.Exporters
             bw.Write(1u);
             bw.Write((UInt32)0);   // Filesize placeholder
 
-            int sectionCount = data.sections.Count;
+            int sectionCount = sections_to_write.Count;
             bw.Write(sectionCount);
 
             foreach (var sec in sections_to_write)
@@ -110,9 +110,9 @@ namespace PD2ModelParser.Exporters
                 sec.StreamWrite(bw);
             }
 
-            if (sections_to_write.Count != sectionCount)
+            if (sections_to_write.Count != data.sections.Count)
             {
-                Log.Default.Warn($"BUG : There were {sectionCount} sections to write but {sections_to_write.Count} were written");
+                Log.Default.Warn($"BUG : There were {data.sections.Count} sections registered but {sections_to_write.Count} were written");
             }
 
             if (data.leftover_data != null)

@@ -119,8 +119,9 @@ namespace PD2ModelParser.Modelscript
                 TransplantAttribute(src_geo.vertex_colors, dst_geo.vertex_colors);
                 TransplantAttribute(src_geo.weight_groups, dst_geo.weight_groups);
                 TransplantAttribute(src_geo.weights, dst_geo.weights);
-                TransplantAttribute(src_geo.binormals, dst_geo.binormals);
-                TransplantAttribute(src_geo.tangents, dst_geo.tangents);
+                TransplantAttribute(src_geo.fourth_weights, dst_geo.fourth_weights);
+                TransplantAttribute(src_geo.uvDirectionV, dst_geo.uvDirectionV);
+                TransplantAttribute(src_geo.uvDirectionU, dst_geo.uvDirectionU);
                 for(var i = 0; i < src_geo.UVs.Length; i++)
                 {
                     TransplantAttribute(src_geo.UVs[i], dst_geo.UVs[i]);

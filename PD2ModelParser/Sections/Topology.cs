@@ -68,6 +68,7 @@ namespace PD2ModelParser.Sections
             dst.facelist.AddRange(this.facelist.Select(f => new Face(f.a, f.b, f.c )));
             dst.count2 = this.count2;
             dst.items2 = (byte[])(this.items2.Clone());
+            dst.remaining_data = this.remaining_data == null ? null : (byte[])this.remaining_data.Clone();
             return dst;
         }
 

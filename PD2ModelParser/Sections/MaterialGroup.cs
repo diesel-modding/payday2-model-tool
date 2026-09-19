@@ -35,11 +35,11 @@ namespace PD2ModelParser.Sections
             {
                 this.itemIds.Add(instream.ReadUInt32());
             }
-            byte[] remaining_data = null;
+            this.remaining_data = null;
             if ((section.offset + 12 + section.size) > instream.BaseStream.Position)
             {
-                remaining_data = instream.ReadBytes((int)((section.offset + 12 + section.size) - instream.BaseStream.Position));
-                Log.Default.Info($"Read a {nameof(MaterialGroup)} with remaining data of size {remaining_data.Length}");
+                this.remaining_data = instream.ReadBytes((int)((section.offset + 12 + section.size) - instream.BaseStream.Position));
+                Log.Default.Info($"Read a {nameof(MaterialGroup)} with remaining data of size {this.remaining_data.Length}");
             }
         }
 

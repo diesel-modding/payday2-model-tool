@@ -316,9 +316,6 @@ namespace PD2ModelParser.Importers
             }
 
             //Arrange UV and Normals
-            List<Vector3> new_arranged_Geometry_normals = [];
-            List<Vector3> new_arranged_Geometry_unknown20 = [];
-            List<Vector3> new_arranged_Geometry_unknown21 = [];
             List<int> added_uvs = [];
             List<int> added_normals = [];
 
@@ -329,9 +326,6 @@ namespace PD2ModelParser.Importers
             Vector3[] new_arranged_Normals = new Vector3[obj.Verts.Count];
             for (int x = 0; x < new_arranged_Normals.Length; x++)
                 new_arranged_Normals[x] = new Vector3(0f, 0f, 0f);
-            Vector3[] new_arranged_unknown20 = new Vector3[obj.Verts.Count];
-            Vector3[] new_arranged_unknown21 = new Vector3[obj.Verts.Count];
-
             List<Face> new_faces = [];
 
             for (int fcount = 0; fcount < obj.Faces.Count; fcount += 3)
@@ -367,8 +361,12 @@ namespace PD2ModelParser.Importers
             for (int x = 0; x < new_arranged_Normals.Length; x++)
                 new_arranged_Normals[x] = Vector3.Normalize(new_arranged_Normals[x]);
 
-            List<Vector3> obj_verts = obj.Verts;
-            ComputeTangentBasis(ref new_faces, ref obj_verts, ref new_arranged_UV, ref new_arranged_Normals, ref new_arranged_unknown20, ref new_arranged_unknown21);
+            DieselGeometry.ComputeUvDirections(
+                obj.Verts,
+                new_arranged_UV,
+                new_faces,
+                out var uvDirectionU,
+                out var uvDirectionV);
 
             List<RenderAtom> new_Model_items2 = [];
 
@@ -399,62 +397,10 @@ namespace PD2ModelParser.Importers
             geometry_section.verts = obj.Verts;
             geometry_section.normals = [.. new_arranged_Normals];
             geometry_section.UVs[0] = [.. new_arranged_UV];
-            geometry_section.binormals = [.. new_arranged_unknown20];
-            geometry_section.tangents = [.. new_arranged_unknown21];
+            geometry_section.uvDirectionV = uvDirectionV;
+            geometry_section.uvDirectionU = uvDirectionU;
 
             topology_section.facelist = new_faces;
-        }
-
-        private static void ComputeTangentBasis(ref List<Face> faces, ref List<Vector3> verts, ref Vector2[] uv0, ref Vector3[] normals, ref Vector3[] tangents, ref Vector3[] binormals)
-        {
-            //Taken from various sources online. Search up Normal Vector Tangent calculation.
-
-            List<ushort> parsed = [];
-
-            foreach (Face f in faces)
-            {
-                float u02 = (uv0[f.c].X - uv0[f.a].X);
-                float v02 = (uv0[f.c].Y - uv0[f.a].Y);
-                float u01 = (uv0[f.b].X - uv0[f.a].X);
-                float v01 = (uv0[f.b].Y - uv0[f.a].Y);
-                float dot00 = u02 * u02 + v02 * v02;
-                float dot01 = u02 * u01 + v02 * v01;
-                float dot11 = u01 * u01 + v01 * v01;
-                float d = dot00 * dot11 - dot01 * dot01;
-                float u = 1.0f;
-                float v = 1.0f;
-                if (d != 0.0f)
-                {
-                    u = (dot11 * u02 - dot01 * u01) / d;
-                    v = (dot00 * u01 - dot01 * u02) / d;
-                }
-
-                Vector3 tangent = verts[f.c] * u + verts[f.b] * v - verts[f.a] * (u + v);
-
-                //vert1
-                if (!parsed.Contains(f.a))
-                {
-                    binormals[f.a] = Vector3.Normalize(Vector3.Cross(tangent, normals[f.a]));
-                    tangents[f.a] = Vector3.Normalize(Vector3.Cross(binormals[f.a], normals[f.a]));
-                    parsed.Add(f.a);
-                }
-
-                //vert2
-                if (!parsed.Contains(f.b))
-                {
-                    binormals[f.b] = Vector3.Normalize(Vector3.Cross(tangent, normals[f.b]));
-                    tangents[f.b] = Vector3.Normalize(Vector3.Cross(binormals[f.b], normals[f.b]));
-                    parsed.Add(f.b);
-                }
-                //vert3
-                if (!parsed.Contains(f.c))
-                {
-                    binormals[f.c] = Vector3.Normalize(Vector3.Cross(tangent, normals[f.c]));
-                    tangents[f.c] = Vector3.Normalize(Vector3.Cross(binormals[f.c], normals[f.c]));
-                    parsed.Add(f.c);
-                }
-
-            }
         }
 
         public static bool ImportNewObjPatternUV(FullModelData fm, string filepath)

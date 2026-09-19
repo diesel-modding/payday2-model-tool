@@ -105,10 +105,10 @@ namespace PD2ModelParser.Sections
         BLENDWEIGHT0 = 19,
         BLENDWEIGHT1 = 20,
         POINTSIZE0 = 21,
-        BINORMAL0 = 22,
-        TANGENT0 = 23,
-        BINORMAL1 = 24,
-        TANGENT1 = 25,
+        UV_DIRECTION_V0 = 22,
+        UV_DIRECTION_U0 = 23,
+        UV_DIRECTION_V1 = 24,
+        UV_DIRECTION_U1 = 25,
     }
     [ModelFileSection(Tags.geometry_tag)]
     internal class DieselGeometry : AbstractSection, ISection, IHashNamed
@@ -127,9 +127,10 @@ namespace PD2ModelParser.Sections
         public List<GeometryWeightGroups> weight_groups = [];
         public List<GeometryWeightGroups> weight_groups1 = [];
         public List<Vector3> weights = [];
+        public List<float> fourth_weights = [];
         public List<Vector4> weights1 = [];
-        public List<Vector3> binormals = [];
-        public List<Vector3> tangents = [];
+        public List<Vector3> uvDirectionV = [];
+        public List<Vector3> uvDirectionU = [];
         public List<float> point_sizes = [];
         public enum GeometryFormat
         {
@@ -235,16 +236,22 @@ namespace PD2ModelParser.Sections
             };
             dst.Headers.AddRange(src.Headers.Select(i => new GeometryHeader(i.ItemSize, i.ItemType)));
             dst.verts.AddRange(src.verts);
-            dst.Uv0.AddRange(src.Uv0);
-            dst.Uv1.AddRange(src.Uv1);
+            dst.position1.AddRange(src.position1);
+            for (int i = 0; i < src.UVs.Length; i++) dst.UVs[i].AddRange(src.UVs[i]);
             dst.normals.AddRange(src.normals);
+            dst.normal1.AddRange(src.normal1);
             dst.vertex_colors.AddRange(src.vertex_colors);
+            dst.vertex_colors1.AddRange(src.vertex_colors1);
             dst.weight_groups.AddRange(src.weight_groups);
+            dst.weight_groups1.AddRange(src.weight_groups1);
             dst.weights.AddRange(src.weights);
-            dst.binormals.AddRange(src.binormals);
-            dst.tangents.AddRange(src.tangents);
+            dst.fourth_weights.AddRange(src.fourth_weights);
+            dst.weights1.AddRange(src.weights1);
+            dst.uvDirectionV.AddRange(src.uvDirectionV);
+            dst.uvDirectionU.AddRange(src.uvDirectionU);
             dst.point_sizes.AddRange(src.point_sizes);
             dst.HashName = src.HashName;
+            dst.remaining_data = src.remaining_data == null ? null : (byte[])src.remaining_data.Clone();
             return dst;
         }
         public DieselGeometry()
@@ -258,8 +265,8 @@ namespace PD2ModelParser.Sections
             Headers.Add(new GeometryHeader(3, GeometryChannelTypes.POSITION0));
             Headers.Add(new GeometryHeader(9, GeometryChannelTypes.TEXCOORD0));
             Headers.Add(new GeometryHeader(8, GeometryChannelTypes.NORMAL0));
-            Headers.Add(new GeometryHeader(8, GeometryChannelTypes.BINORMAL0));
-            Headers.Add(new GeometryHeader(8, GeometryChannelTypes.TANGENT0));
+            Headers.Add(new GeometryHeader(8, GeometryChannelTypes.UV_DIRECTION_V0));
+            Headers.Add(new GeometryHeader(8, GeometryChannelTypes.UV_DIRECTION_U0));
             verts = newobject.Verts;
             UVs[0] = newobject.Uv;
             normals = newobject.Normals;
@@ -324,15 +331,15 @@ namespace PD2ModelParser.Sections
                     vertex_colors.Capacity = (int)vert_count + 1;
                     for (int x = 0; x < vert_count; x++) vertex_colors.Add(new GeometryColor(instream));
                 }
-                else if (head.ItemType == GeometryChannelTypes.BINORMAL0 || head.ItemType == GeometryChannelTypes.BINORMAL1)
+                else if (head.ItemType == GeometryChannelTypes.UV_DIRECTION_V0 || head.ItemType == GeometryChannelTypes.UV_DIRECTION_V1)
                 {
-                    binormals.Capacity = (int)vert_count + 1;
-                    for (int x = 0; x < vert_count; x++) binormals.Add(ReadVector3ByType(instream, head.ItemSize));
+                    uvDirectionV.Capacity = (int)vert_count + 1;
+                    for (int x = 0; x < vert_count; x++) uvDirectionV.Add(ReadVector3ByType(instream, head.ItemSize));
                 }
-                else if (head.ItemType == GeometryChannelTypes.TANGENT0 || head.ItemType == GeometryChannelTypes.TANGENT1)
+                else if (head.ItemType == GeometryChannelTypes.UV_DIRECTION_U0 || head.ItemType == GeometryChannelTypes.UV_DIRECTION_U1)
                 {
-                    tangents.Capacity = (int)vert_count + 1;
-                    for (int x = 0; x < vert_count; x++) tangents.Add(ReadVector3ByType(instream, head.ItemSize));
+                    uvDirectionU.Capacity = (int)vert_count + 1;
+                    for (int x = 0; x < vert_count; x++) uvDirectionU.Add(ReadVector3ByType(instream, head.ItemSize));
                 }
                 else if (head.ItemType == GeometryChannelTypes.BLENDINDICES0)
                 {
@@ -360,13 +367,13 @@ namespace PD2ModelParser.Sections
                                 X = instream.ReadSingle(),
                                 Y = instream.ReadSingle()
                             };
-                            if (head.ItemSize == 3)
+                            if (head.ItemSize >= 3)
                             {
                                 weights_entry.Z = instream.ReadSingle();
                             }
-                            else if (head.ItemSize == 4)
+                            if (head.ItemSize == 4)
                             {
-                                weights_entry.Z = instream.ReadSingle();
+                                fourth_weights.Add(instream.ReadSingle());
                             }
                             weights.Add(weights_entry);
                         }
@@ -431,8 +438,8 @@ namespace PD2ModelParser.Sections
             List<Vector3> verts = this.verts;
             List<Vector3> normals = [.. this.normals];
             List<GeometryWeightGroups> weight_groups = this.weight_groups;
-            List<Vector3> binormals = this.binormals;
-            List<Vector3> tangents = this.tangents;
+            List<Vector3> uvDirectionV = this.uvDirectionV;
+            List<Vector3> uvDirectionU = this.uvDirectionU;
             if (vert_count != verts.Count)
             {
                 throw new InvalidDataException($"DieselGeometry {HashName}: vert_count={vert_count}, verts={verts.Count}.");
@@ -457,6 +464,10 @@ namespace PD2ModelParser.Sections
                         if (weights.Count != vert_count)
                         {
                             throw new InvalidDataException($"DieselGeometry {HashName}: BLENDWEIGHT0 expects {vert_count} weights, got {weights.Count}.");
+                        }
+                        if (head.ItemSize == 4 && fourth_weights.Count != vert_count)
+                        {
+                            throw new InvalidDataException($"DieselGeometry {HashName}: BLENDWEIGHT0 expects {vert_count} fourth weight components, got {fourth_weights.Count}.");
                         }
                     }
                 }
@@ -498,19 +509,19 @@ namespace PD2ModelParser.Sections
                 {
                     for (int x = 0; x < vert_count; x++) vertex_colors[x].StreamWrite(outstream);
                 }
-                else if (head.ItemType == GeometryChannelTypes.BINORMAL0 || head.ItemType == GeometryChannelTypes.BINORMAL1)
+                else if (head.ItemType == GeometryChannelTypes.UV_DIRECTION_V0 || head.ItemType == GeometryChannelTypes.UV_DIRECTION_V1)
                 {
                     for (int x = 0; x < vert_count; x++)
                     {
-                        Vector3 value = binormals.Count == vert_count ? binormals[x] : Vector3.Zero;
+                        Vector3 value = uvDirectionV.Count == vert_count ? uvDirectionV[x] : Vector3.Zero;
                         WriteVector3ByType(outstream, value, head.ItemSize);
                     }
                 }
-                else if (head.ItemType == GeometryChannelTypes.TANGENT0 || head.ItemType == GeometryChannelTypes.TANGENT1)
+                else if (head.ItemType == GeometryChannelTypes.UV_DIRECTION_U0 || head.ItemType == GeometryChannelTypes.UV_DIRECTION_U1)
                 {
                     for (int x = 0; x < vert_count; x++)
                     {
-                        Vector3 value = tangents.Count == vert_count ? tangents[x] : Vector3.Zero;
+                        Vector3 value = uvDirectionU.Count == vert_count ? uvDirectionU[x] : Vector3.Zero;
                         WriteVector3ByType(outstream, value, head.ItemSize);
                     }
                 }
@@ -538,7 +549,7 @@ namespace PD2ModelParser.Sections
                             else if (head.ItemSize == 4)
                             {
                                 outstream.Write(weight.Z);
-                                outstream.Write(0.0f);
+                                outstream.Write(fourth_weights[x]);
                             }
                         }
                     }
@@ -608,7 +619,52 @@ namespace PD2ModelParser.Sections
         }
         public override string ToString()
         {
-            return base.ToString() + " Count: " + vert_count + " Headers: " + Headers.Count + " Verts: " + verts.Count + " UV0: " + Uv0.Count + " UV1: " + Uv1.Count + " Normals: " + normals.Count + " Weight Groups: " + weight_groups.Count + " Weights: " + weights.Count + " Binormals: " + binormals.Count + " Tangents: " + tangents.Count;
+            return base.ToString() + " Count: " + vert_count + " Headers: " + Headers.Count + " Verts: " + verts.Count + " UV0: " + Uv0.Count + " UV1: " + Uv1.Count + " Normals: " + normals.Count + " Weight Groups: " + weight_groups.Count + " Weights: " + weights.Count + " UV Direction V: " + uvDirectionV.Count + " UV Direction U: " + uvDirectionU.Count;
+        }
+
+        public static void ComputeUvDirections(
+            IReadOnlyList<Vector3> positions,
+            IReadOnlyList<Vector2> uvs,
+            IReadOnlyList<Face> faces,
+            out List<Vector3> directionU,
+            out List<Vector3> directionV)
+        {
+            var accumulatedU = new Vector3[positions.Count];
+            var accumulatedV = new Vector3[positions.Count];
+
+            foreach (Face face in faces)
+            {
+                Vector3 edge1 = positions[face.b] - positions[face.a];
+                Vector3 edge2 = positions[face.c] - positions[face.a];
+                Vector2 uv1 = uvs[face.b] - uvs[face.a];
+                Vector2 uv2 = uvs[face.c] - uvs[face.a];
+
+                float determinant = uv1.X * uv2.Y - uv2.X * uv1.Y;
+                if (!float.IsFinite(determinant) || MathF.Abs(determinant) < 1e-12f)
+                    continue;
+
+                float inverse = 1.0f / determinant;
+                Vector3 faceU = (edge1 * uv2.Y - edge2 * uv1.Y) * inverse;
+                Vector3 faceV = (edge2 * uv1.X - edge1 * uv2.X) * inverse;
+
+                accumulatedU[face.a] += faceU;
+                accumulatedU[face.b] += faceU;
+                accumulatedU[face.c] += faceU;
+                accumulatedV[face.a] += faceV;
+                accumulatedV[face.b] += faceV;
+                accumulatedV[face.c] += faceV;
+            }
+
+            directionU = accumulatedU.Select(NormalizeDirection).ToList();
+            directionV = accumulatedV.Select(NormalizeDirection).ToList();
+        }
+
+        private static Vector3 NormalizeDirection(Vector3 value)
+        {
+            float lengthSquared = value.LengthSquared();
+            return float.IsFinite(lengthSquared) && lengthSquared > 1e-20f
+                ? value / MathF.Sqrt(lengthSquared)
+                : Vector3.Zero;
         }
     }
 }

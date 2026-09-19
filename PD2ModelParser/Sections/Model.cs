@@ -152,7 +152,7 @@ namespace PD2ModelParser.Sections
         }
 
         public Model(Obj_data obj, PassthroughGP passGP, TopologyIP topoIP, MaterialGroup matg, Object3D parent)
-            : this(obj.Object_name, (uint)obj.Verts.Count, (uint)obj.Faces.Count, passGP, topoIP, matg, parent) { }
+            : this(obj.Object_name, (uint)(obj.Faces.Count / 3), (uint)obj.Verts.Count, passGP, topoIP, matg, parent) { }
 
         public Model(BinaryReader instream, SectionHeader section)
             : base(instream)

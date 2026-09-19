@@ -36,6 +36,8 @@ namespace PD2ModelParser.Sections
         {
             outstream.Write(this.DieselGeometry.SectionId);
             outstream.Write(this.Topology.SectionId);
+            if (this.remaining_data != null)
+                outstream.Write(this.remaining_data);
         }
 
         public override string ToString()

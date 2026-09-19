@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using System.Reflection;
 using GLTF = SharpGLTF.Schema2;
 using DM = PD2ModelParser.Sections;
 
@@ -114,14 +113,6 @@ namespace PD2ModelParser.Importers
                 _ = bool.TryParse(importTransforms, out importer.importTransforms);
             }
 
-            foreach (var mesh in gltf.LogicalMeshes)
-            {
-                foreach (var prim in mesh.Primitives)
-                {
-                    TryGenerateTangentsUsingToolkit(prim);
-                }
-            }
-
             importer.ImportTree(gltf, createModels, parentFinder);
         }
 
@@ -137,62 +128,6 @@ namespace PD2ModelParser.Importers
 
         private readonly float scaleFactor = 100;
         private Matrix4x4 axisCorrection = Matrix4x4.CreateRotationX(MathF.PI / 2);
-
-        private static bool TryGenerateTangentsUsingToolkit(GLTF.MeshPrimitive prim)
-        {
-            try
-            {
-                var toolkitAssembly = AppDomain.CurrentDomain.GetAssemblies()
-                    .FirstOrDefault(a =>
-                        string.Equals(
-                            a.GetName().Name,
-                            "SharpGLTF.Toolkit",
-                            StringComparison.Ordinal));
-
-                if (toolkitAssembly == null)
-                    return false;
-
-                var extensionsType =
-                    toolkitAssembly.GetType("SharpGLTF.Toolkit.Extensions");
-
-                var createMesh = extensionsType?.GetMethod(
-                    "CreateMesh",
-                    BindingFlags.Public | BindingFlags.Static);
-
-                if (createMesh == null)
-                    return false;
-
-                var tkMesh = createMesh.Invoke(null, [prim]);
-
-                if (tkMesh == null)
-                    return false;
-
-                var generatorType =
-                    toolkitAssembly.GetType(
-                        "SharpGLTF.Toolkit.TangentSpaceGenerator");
-
-                var generateTangents = generatorType?.GetMethod(
-                    "GenerateTangents",
-                    BindingFlags.Public | BindingFlags.Static);
-
-                if (generateTangents == null)
-                    return false;
-
-                generateTangents.Invoke(
-                    null,
-                    [tkMesh]);
-
-                return prim.VertexAccessors.TryGetValue(
-                           "TANGENT",
-                           out var tangent) &&
-                       tangent != null &&
-                       tangent.Count > 0;
-            }
-            catch
-            {
-                return false;
-            }
-        }
 
         public void ImportTree(GLTF.ModelRoot root, bool createModels, Func<string, DM.Object3D> parentFinder)
         {
@@ -492,66 +427,8 @@ namespace PD2ModelParser.Importers
 
             Vector3 min = md.verts.Aggregate(MathUtil.Min);
             Vector3 max = md.verts.Aggregate(MathUtil.Max);
-            Vector3 size = max - min;
-
-            int axis;
-            if (size.X >= size.Y && size.X >= size.Z)
-            {
-                axis = 0;
-            }
-            else if (size.Y >= size.X && size.Y >= size.Z)
-            {
-                axis = 1;
-            }
-            else
-            {
-                axis = 2;
-            }
-
-            Vector3 axisVector = axis switch
-            {
-                0 => Vector3.UnitX,
-                1 => Vector3.UnitY,
-                _ => Vector3.UnitZ
-            };
-
-            Vector3 center = (min + max) * 0.5f;
-
-            float minAxial = float.MaxValue;
-            float maxAxial = float.MinValue;
-            float maxRadius = 0.0f;
-
-            foreach (Vector3 vertex in md.verts)
-            {
-                Vector3 relative = vertex - center;
-                float axial = Vector3.Dot(relative, axisVector);
-
-                minAxial = MathF.Min(minAxial, axial);
-                maxAxial = MathF.Max(maxAxial, axial);
-
-                Vector3 RadiusIal = relative - axisVector * axial;
-                maxRadius = MathF.Max(maxRadius, RadiusIal.Length());
-            }
-
-            maxRadius *= scaleFactor;
-            minAxial *= scaleFactor;
-            maxAxial *= scaleFactor;
-
-            Vector3 pd2Center = center * scaleFactor;
-
-            float totalLength = maxAxial - minAxial;
-            float diameter = maxRadius * 2.0f;
-            float length = MathF.Max(totalLength, diameter);
-
-            Vector3 halfSize = axis switch
-            {
-                0 => new Vector3(length, diameter, diameter) * 0.5f,
-                1 => new Vector3(diameter, length, diameter) * 0.5f,
-                _ => new Vector3(diameter, diameter, length) * 0.5f
-            };
-
-            Vector3 boundsMin = pd2Center - halfSize;
-            Vector3 boundsMax = pd2Center + halfSize;
+            Vector3 boundsMin = min * scaleFactor;
+            Vector3 boundsMax = max * scaleFactor;
             float DistanceRadius = CalculateDistanceRadius(boundsMin, boundsMax);
 
             return (boundsMin, boundsMax, DistanceRadius);
@@ -624,8 +501,8 @@ namespace PD2ModelParser.Importers
 
             var model = new DM.Model(
                 name,
-                (uint)ms.geom.verts.Count,
                 (uint)ms.topo.facelist.Count,
+                (uint)ms.geom.verts.Count,
                 ms.passgp,
                 ms.topoip,
                 matGroup,
@@ -940,16 +817,16 @@ namespace PD2ModelParser.Importers
                     md.normals);
 
                 AddToGeom(
-                    ref geom.binormals,
+                    ref geom.uvDirectionV,
                     8,
-                    DM.GeometryChannelTypes.BINORMAL0,
-                    md.binormals);
+                    DM.GeometryChannelTypes.UV_DIRECTION_V0,
+                    md.uvDirectionV);
 
                 AddToGeom(
-                    ref geom.tangents,
+                    ref geom.uvDirectionU,
                     8,
-                    DM.GeometryChannelTypes.TANGENT0,
-                    md.tangents);
+                    DM.GeometryChannelTypes.UV_DIRECTION_U0,
+                    md.uvDirectionU);
 
                 AddToGeom(
                     ref geom.vertex_colors,
@@ -1024,8 +901,8 @@ namespace PD2ModelParser.Importers
             public List<Vector3> verts = [];
             public List<Vector3> normals = [];
             public List<DM.GeometryColor> vertex_colors = [];
-            public List<Vector3> binormals = [];
-            public List<Vector3> tangents = [];
+            public List<Vector3> uvDirectionV = [];
+            public List<Vector3> uvDirectionU = [];
             public List<DM.Face> faces = [];
             public List<DM.RenderAtom> renderAtoms = [];
             public List<string> materials = [];
@@ -1053,9 +930,6 @@ namespace PD2ModelParser.Importers
                 this.verts.Add(vtx.pos);
                 vtx.vtx_col.WithValue(v => this.vertex_colors.Add(v.ToGeometryColor()));
                 vtx.normal.WithValue(v => this.normals.Add(v));
-                vtx.tangent.WithValue(v => this.tangents.Add(v));
-                vtx.binormal.WithValue(v => this.binormals.Add(v));
-
                 for (var i = 0; i < 8; i++)
                 {
                     vtx.uv[i].WithValue(v => this.uv0[i].Add(v));
@@ -1087,10 +961,11 @@ namespace PD2ModelParser.Importers
                 var attribsUsed = mesh.Primitives[0]
                     .VertexAccessors
                     .Select(i => i.Key)
+                    .Where(i => i != "TANGENT")
                     .OrderBy(i => i);
 
                 var ok = mesh.Primitives
-                    .Select(i => i.VertexAccessors.Keys.OrderBy(j => j))
+                    .Select(i => i.VertexAccessors.Keys.Where(j => j != "TANGENT").OrderBy(j => j))
                     .Aggregate(
                         true,
                         (acc, curr) => acc && curr.SequenceEqual(attribsUsed));
@@ -1167,6 +1042,16 @@ namespace PD2ModelParser.Importers
                     currentBaseVertex += ra.GeometrySliceLength;
                 }
 
+                if (ms.uv0[0].Count == ms.verts.Count)
+                {
+                    DM.DieselGeometry.ComputeUvDirections(
+                        ms.verts,
+                        ms.uv0[0],
+                        ms.faces,
+                        out ms.uvDirectionU,
+                        out ms.uvDirectionV);
+                }
+
                 return ms;
             }
 
@@ -1193,26 +1078,6 @@ namespace PD2ModelParser.Importers
                         (vtx, idx) =>
                         {
                             vtx.normal = na[idx];
-                            return vtx;
-                        });
-                }
-
-                prim.VertexAccessors.TryGetValue("TANGENT", out var tangent);
-
-                if (tangent != null && tangent.Count > 0)
-                {
-                    var ta = tangent.AsVector4Array();
-
-                    result = result.Select(
-                        (vtx, idx) =>
-                        {
-                            var et = ta[idx];
-                            var tangent_vector = new Vector3(et.X, et.Y, et.Z);
-                            var binormal =
-                                Vector3.Cross(tangent_vector, vtx.normal.Value) * et.W;
-
-                            vtx.tangent = tangent_vector;
-                            vtx.binormal = binormal;
                             return vtx;
                         });
                 }
@@ -1262,135 +1127,6 @@ namespace PD2ModelParser.Importers
                             {
                                 vtx.uv[ii] =
                                     new Vector2(uva[idx].X, 1 - uva[idx].Y);
-
-                                return vtx;
-                            });
-                    }
-                }
-
-                // Toolkit tangent generation is performed once in Import().
-                // If it failed or the source had no tangents, use the manual fallback.
-                if ((tangent == null || tangent.Count == 0) &&
-                    prim.VertexAccessors.ContainsKey("POSITION") &&
-                    prim.VertexAccessors.ContainsKey("NORMAL") &&
-                    prim.VertexAccessors.ContainsKey("TEXCOORD_0"))
-                {
-                    var positions = prim.VertexAccessors["POSITION"]
-                        .AsVector3Array()
-                        .ToArray();
-
-                    var normalsArr = prim.VertexAccessors["NORMAL"]
-                        .AsVector3Array()
-                        .ToArray();
-
-                    var uvs = prim.VertexAccessors["TEXCOORD_0"]
-                        .AsVector2Array()
-                        .Select(u => new Vector2(u.X, u.Y))
-                        .ToArray();
-
-                    var tris = prim.GetTriangleIndices().ToList();
-
-                    if (positions.Length != 0 &&
-                        normalsArr.Length != 0 &&
-                        uvs.Length != 0 &&
-                        tris.Count != 0)
-                    {
-                        int vn = positions.Length;
-                        var tan1 = new Vector3[vn];
-                        var tan2 = new Vector3[vn];
-
-                        for (int i = 0; i < tris.Count; i++)
-                        {
-                            var (A, B, C) = tris[i];
-
-                            int i1 = A;
-                            int i2 = B;
-                            int i3 = C;
-
-                            var v1 = positions[i1];
-                            var v2 = positions[i2];
-                            var v3 = positions[i3];
-
-                            var w1 = uvs[i1];
-                            var w2 = uvs[i2];
-                            var w3 = uvs[i3];
-
-                            var x1 = v2.X - v1.X;
-                            var x2 = v3.X - v1.X;
-                            var y1 = v2.Y - v1.Y;
-                            var y2 = v3.Y - v1.Y;
-                            var z1 = v2.Z - v1.Z;
-                            var z2 = v3.Z - v1.Z;
-
-                            var s1 = w2.X - w1.X;
-                            var s2 = w3.X - w1.X;
-                            var t1 = w2.Y - w1.Y;
-                            var t2 = w3.Y - w1.Y;
-
-                            float denom = s1 * t2 - s2 * t1;
-
-                            if (Math.Abs(denom) < 1e-9f)
-                                continue;
-
-                            float r = 1.0f / denom;
-
-                            var sdir = new Vector3(
-                                (t2 * x1 - t1 * x2) * r,
-                                (t2 * y1 - t1 * y2) * r,
-                                (t2 * z1 - t1 * z2) * r);
-
-                            var tdir = new Vector3(
-                                (s1 * x2 - s2 * x1) * r,
-                                (s1 * y2 - s2 * y1) * r,
-                                (s1 * z2 - s2 * z1) * r);
-
-                            tan1[i1] += sdir;
-                            tan1[i2] += sdir;
-                            tan1[i3] += sdir;
-
-                            tan2[i1] += tdir;
-                            tan2[i2] += tdir;
-                            tan2[i3] += tdir;
-                        }
-
-                        var outT = new Vector4[vn];
-
-                        for (int i = 0; i < vn; i++)
-                        {
-                            var nrm = normalsArr[i];
-                            var t = tan1[i];
-
-                            var orth = t - nrm * Vector3.Dot(nrm, t);
-
-                            if (orth.LengthSquared() < 1e-18f)
-                            {
-                                orth = Vector3.UnitX;
-                            }
-
-                            orth = Vector3.Normalize(orth);
-
-                            var cross = Vector3.Cross(nrm, t);
-                            float w =
-                                Vector3.Dot(cross, tan2[i]) < 0.0f
-                                    ? -1.0f
-                                    : 1.0f;
-
-                            outT[i] = new Vector4(orth, w);
-                        }
-
-                        result = result.Select(
-                            (vtx, idx) =>
-                            {
-                                vtx.tangent =
-                                    new Vector3(
-                                        outT[idx].X,
-                                        outT[idx].Y,
-                                        outT[idx].Z);
-
-                                vtx.binormal =
-                                    Vector3.Cross(
-                                        vtx.tangent.Value,
-                                        vtx.normal.Value) * outT[idx].W;
 
                                 return vtx;
                             });
@@ -1454,9 +1190,7 @@ namespace PD2ModelParser.Importers
         public class Vertex : IEquatable<Vertex>
         {
             public Vector3 pos;
-            public Vector3? normal,
-                tangent,
-                binormal;
+            public Vector3? normal;
 
             public Vector4? vtx_col;
             public Vector2?[] uv = new Vector2?[10];
@@ -1475,8 +1209,6 @@ namespace PD2ModelParser.Importers
                 return
                     pos.Equals(other.pos) &&
                     EqualityComparer<Vector3?>.Default.Equals(normal, other.normal) &&
-                    EqualityComparer<Vector3?>.Default.Equals(tangent, other.tangent) &&
-                    EqualityComparer<Vector3?>.Default.Equals(binormal, other.binormal) &&
                     EqualityComparer<Vector4?>.Default.Equals(vtx_col, other.vtx_col) &&
                     EqualityComparer<Vector3?>.Default.Equals(weight, other.weight) &&
                     EqualityComparer<DM.GeometryWeightGroups>.Default.Equals(
@@ -1491,8 +1223,6 @@ namespace PD2ModelParser.Importers
 
                 hash.Add(pos);
                 hash.Add(normal);
-                hash.Add(tangent);
-                hash.Add(binormal);
                 hash.Add(vtx_col);
                 hash.Add(weight);
                 hash.Add(weightGroups);

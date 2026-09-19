@@ -293,8 +293,10 @@ namespace PD2ModelParser.Exporters
             else if (size.Y >= size.X && size.Y >= size.Z) axis = 1;
             else axis = 2;
             float largest = axis == 0 ? size.X : axis == 1 ? size.Y : size.Z;
-            float Radius = axis == 0 ? MathF.Min(size.Y, size.Z) * 0.5f : axis == 1 ? MathF.Min(size.X, size.Z) * 0.5f : MathF.Min(size.X, size.Y) * 0.5f;
-            float cylinderLength = MathF.Max(0, largest - Radius * 2.0f);
+            float radiusX = axis == 0 ? size.Z * 0.5f : size.X * 0.5f;
+            float radiusY = axis == 1 ? size.Z * 0.5f : size.Y * 0.5f;
+            float capRadius = MathF.Min(radiusX, radiusY);
+            float cylinderLength = MathF.Max(0, largest - capRadius * 2.0f);
             const int segments = 24;
             const int hemisphereRings = 8;
             const int cylinderRings = 4;
@@ -305,23 +307,23 @@ namespace PD2ModelParser.Exporters
             {
                 float t = (float)y / hemisphereRings;
                 float phi = -MathF.PI * 0.5f + t * MathF.PI * 0.5f;
-                float z = -halfCylinder + MathF.Sin(phi) * Radius;
-                float ringRadius = MathF.Cos(phi) * Radius;
-                AddCapsuleRing(vertices, center, ringRadius, z, segments);
+                float z = -halfCylinder + MathF.Sin(phi) * capRadius;
+                float ringScale = MathF.Cos(phi);
+                AddCapsuleRing(vertices, center, radiusX * ringScale, radiusY * ringScale, z, segments);
             }
             for (int y = 1; y < cylinderRings; y++)
             {
                 float t = (float)y / cylinderRings;
                 float z = -halfCylinder + t * cylinderLength;
-                AddCapsuleRing(vertices, center, Radius, z, segments);
+                AddCapsuleRing(vertices, center, radiusX, radiusY, z, segments);
             }
             for (int y = 0; y <= hemisphereRings; y++)
             {
                 float t = (float)y / hemisphereRings;
                 float phi = t * MathF.PI * 0.5f;
-                float z = halfCylinder + MathF.Sin(phi) * Radius;
-                float ringRadius = MathF.Cos(phi) * Radius;
-                AddCapsuleRing(vertices, center, ringRadius, z, segments);
+                float z = halfCylinder + MathF.Sin(phi) * capRadius;
+                float ringScale = MathF.Cos(phi);
+                AddCapsuleRing(vertices, center, radiusX * ringScale, radiusY * ringScale, z, segments);
             }
             int rings = vertices.Count / (segments + 1);
             for (int y = 0; y < rings - 1; y++)
@@ -358,13 +360,13 @@ namespace PD2ModelParser.Exporters
             }
             return CreateGeneratedMesh(model.Name, vertices, [.. indices]);
         }
-        private static void AddCapsuleRing(List<Vector3> vertices, Vector3 center, float Radius, float z, int segments)
+        private static void AddCapsuleRing(List<Vector3> vertices, Vector3 center, float radiusX, float radiusY, float z, int segments)
         {
             for (int x = 0; x <= segments; x++)
             {
                 float u = (float)x / segments;
                 float theta = u * MathF.PI * 2.0f;
-                vertices.Add(center + new Vector3(MathF.Cos(theta) * Radius, MathF.Sin(theta) * Radius, z));
+                vertices.Add(center + new Vector3(MathF.Cos(theta) * radiusX, MathF.Sin(theta) * radiusY, z));
             }
         }
         private GLTF.Mesh CreateGeneratedMesh(string name, IList<Vector3> vertices, ushort[] indices)
@@ -427,7 +429,7 @@ namespace PD2ModelParser.Exporters
                 }
             }
             var attribs = GetGeometryAttributes(geometry, jointRemap);
-            foreach (var (indexAccessor, material) in CreatePrimitiveIndices(topology, model.RenderAtoms, materialGroup))
+            foreach (var (indexAccessor, material) in CreatePrimitiveIndices(topology, model.RenderAtoms, materialGroup, geometry))
             {
                 var prim = mesh.CreatePrimitive();
                 prim.DrawPrimitiveType = GLTF.PrimitiveType.TRIANGLES;
@@ -438,25 +440,43 @@ namespace PD2ModelParser.Exporters
             }
             return mesh;
         }
-        private IEnumerable<(GLTF.Accessor, GLTF.Material)> CreatePrimitiveIndices(Topology topo, IEnumerable<RenderAtom> atoms, MaterialGroup materialGroup)
+        private IEnumerable<(GLTF.Accessor, GLTF.Material)> CreatePrimitiveIndices(Topology topo, IEnumerable<RenderAtom> atoms, MaterialGroup materialGroup, DieselGeometry geometry)
         {
-            var buf = new ArraySegment<byte>(new byte[topo.facelist.Count * 3 * 2]);
-            var mai = new MemoryAccessInfo($"indices_{topo.HashName}", 0, topo.facelist.Count * 3, 0, GLTF.DimensionType.SCALAR, GLTF.EncodingType.UNSIGNED_SHORT);
-            var ma = new MemoryAccessor(buf, mai);
-            var array = ma.AsIntegerArray();
+            var rawIndices = new ushort[topo.facelist.Count * 3];
             for (int i = 0; i < topo.facelist.Count; i++)
             {
-                array[i * 3 + 0] = topo.facelist[i].a;
-                array[i * 3 + 1] = topo.facelist[i].b;
-                array[i * 3 + 2] = topo.facelist[i].c;
+                rawIndices[i * 3 + 0] = topo.facelist[i].a;
+                rawIndices[i * 3 + 1] = topo.facelist[i].b;
+                rawIndices[i * 3 + 2] = topo.facelist[i].c;
             }
-            var atomcount = 0;
-            foreach (var ra in atoms)
+
+            var atomList = atoms.ToList();
+            var localIndexModes = atomList
+                .Select(ra => DetectLocalIndices(rawIndices, ra, geometry))
+                .ToList();
+            int localVotes = localIndexModes.Count(mode => mode == true);
+            int absoluteVotes = localIndexModes.Count(mode => mode == false);
+            bool? modelIndexMode = localVotes > absoluteVotes ? true :
+                                   absoluteVotes > localVotes ? false : null;
+
+            for (int atomIndex = 0; atomIndex < atomList.Count; atomIndex++)
             {
-                var atom_mai = new MemoryAccessInfo($"indices_{topo.HashName}_{atomcount++}", (int)ra.BaseIndex * 2, (int)ra.TriangleCount * 3, 0, GLTF.DimensionType.SCALAR, GLTF.EncodingType.UNSIGNED_SHORT);
-                var atom_ma = new MemoryAccessor(buf, atom_mai);
-                var accessor = root.CreateAccessor();
-                accessor.SetIndexData(atom_ma);
+                var ra = atomList[atomIndex];
+                int indexCount = (int)ra.TriangleCount * 3;
+                int baseIndex = (int)ra.BaseIndex;
+                bool useLocalIndices = localIndexModes[atomIndex] ??
+                                       modelIndexMode ??
+                                       ra.BaseVertex != 0;
+                var resolvedIndices = new ushort[indexCount];
+
+                for (int i = 0; i < indexCount; i++)
+                {
+                    uint index = rawIndices[baseIndex + i];
+                    if (useLocalIndices) index += ra.BaseVertex;
+                    resolvedIndices[i] = (ushort)index;
+                }
+
+                var accessor = CreateIndexAccessor($"indices_{topo.HashName}_{atomIndex}", resolvedIndices);
                 var materialSection = materialGroup.Items[(int)ra.MaterialId];
                 if (!materialsBySection.TryGetValue(materialSection, out var material))
                 {
@@ -466,6 +486,75 @@ namespace PD2ModelParser.Exporters
                 yield
                 return (accessor, material);
             }
+        }
+
+        private static bool? DetectLocalIndices(ushort[] indices, RenderAtom atom, DieselGeometry geometry)
+        {
+            uint vertexCount = geometry.vert_count;
+            int start = (int)atom.BaseIndex;
+            int count = (int)atom.TriangleCount * 3;
+            bool localValid = atom.GeometrySliceLength > 0;
+            bool absoluteSliceValid = atom.GeometrySliceLength > 0;
+            bool absoluteGeometryValid = true;
+
+            for (int i = 0; i < count; i++)
+            {
+                uint index = indices[start + i];
+                localValid &= index < atom.GeometrySliceLength &&
+                              index + atom.BaseVertex < vertexCount &&
+                              index + atom.BaseVertex <= ushort.MaxValue;
+                absoluteSliceValid &= index >= atom.BaseVertex &&
+                                      index - atom.BaseVertex < atom.GeometrySliceLength &&
+                                      index < vertexCount;
+                absoluteGeometryValid &= index < vertexCount;
+            }
+
+            if (localValid && !absoluteSliceValid) return true;
+            if (absoluteSliceValid && !localValid) return false;
+            if (localValid && absoluteSliceValid)
+            {
+                float localScore = ScoreIndexInterpretation(indices, atom, geometry, true);
+                float absoluteScore = ScoreIndexInterpretation(indices, atom, geometry, false);
+                const float scoreTolerance = 0.05f;
+
+                if (localScore > absoluteScore + scoreTolerance) return true;
+                if (absoluteScore > localScore + scoreTolerance) return false;
+            }
+            if (!localValid && !absoluteSliceValid && absoluteGeometryValid) return false;
+            return null;
+        }
+
+        private static float ScoreIndexInterpretation(ushort[] indices, RenderAtom atom, DieselGeometry geometry, bool localIndices)
+        {
+            if (geometry.normals.Count != geometry.verts.Count) return float.NegativeInfinity;
+
+            int start = (int)atom.BaseIndex;
+            int count = (int)atom.TriangleCount * 3;
+            float score = 0;
+            int samples = 0;
+
+            for (int i = 0; i < count; i += 3)
+            {
+                int indexA = indices[start + i + 0] + (localIndices ? (int)atom.BaseVertex : 0);
+                int indexB = indices[start + i + 1] + (localIndices ? (int)atom.BaseVertex : 0);
+                int indexC = indices[start + i + 2] + (localIndices ? (int)atom.BaseVertex : 0);
+                var faceNormal = Vector3.Cross(
+                    geometry.verts[indexB] - geometry.verts[indexA],
+                    geometry.verts[indexC] - geometry.verts[indexA]);
+
+                if (!faceNormal.IsFinite() || faceNormal.LengthSquared() < 1e-20f) continue;
+                faceNormal = Vector3.Normalize(faceNormal);
+
+                foreach (int vertexIndex in new[] { indexA, indexB, indexC })
+                {
+                    var normal = geometry.normals[vertexIndex];
+                    if (!normal.IsFinite() || normal.LengthSquared() < 1e-20f) continue;
+                    score += MathF.Abs(Vector3.Dot(faceNormal, Vector3.Normalize(normal)));
+                    samples++;
+                }
+            }
+
+            return samples > 0 ? score / samples : float.NegativeInfinity;
         }
         private List<(string, GLTF.Accessor)> GetGeometryAttributes(DieselGeometry geometry, Dictionary<int, int> jointRemap)
         {
@@ -493,35 +582,39 @@ namespace PD2ModelParser.Exporters
                 var a_norm = MakeVertexAttributeAccessor("vnorm", geometry.normals, 12, GLTF.DimensionType.VEC3, MakeNormal, ma => ma.AsVector3Array());
                 result.Add(("NORMAL", a_norm));
             }
-            if (geometry.tangents.Count > 0)
+            if (geometry.uvDirectionU.Count == geometry.vert_count &&
+                geometry.uvDirectionV.Count == geometry.vert_count &&
+                geometry.normals.Count == geometry.vert_count)
             {
-                Vector4 makeTangent(Vector3 input, int index)
+                Vector4 MakeTangent(Vector3 directionU, int index)
                 {
-                    var tangent = Vector3.Normalize(input);
-                    if (!tangent.IsFinite())
+                    var normal = Vector3.Normalize(geometry.normals[index]);
+                    var tangent = directionU - normal * Vector3.Dot(normal, directionU);
+
+                    if (!normal.IsFinite() || !tangent.IsFinite() || tangent.LengthSquared() < 1e-20f)
                     {
-                        Log.Default.Warn("Vertex {0} of geometry {1}|{2} has bogus tangent ({3})", index, geometry.SectionId, geometry.HashName, tangent);
-                        tangent = new Vector3(0, 1, 0);
+                        Log.Default.Warn("Vertex {0} of geometry {1}|{2} has an unusable UV U direction ({3})", index, geometry.SectionId, geometry.HashName, directionU);
+                        normal = normal.IsFinite() ? normal : Vector3.UnitZ;
+                        var axis = MathF.Abs(normal.X) < 0.9f ? Vector3.UnitX : Vector3.UnitY;
+                        tangent = axis - normal * Vector3.Dot(normal, axis);
                     }
-                    if (!tangent.IsUnitLength())
+
+                    tangent = Vector3.Normalize(tangent);
+                    var directionV = geometry.uvDirectionV[index];
+                    var handedness = Vector3.Dot(Vector3.Cross(tangent, normal), directionV);
+
+                    if (!float.IsFinite(handedness))
                     {
-                        Log.Default.Warn("Vertex {0} of geometry {1}|{2} has bogus tangent length {4} ({3})", index, geometry.SectionId, geometry.HashName, tangent, tangent.Length());
-                        tangent = new Vector3(0, 1, 0);
-                    }
-                    var binorm = geometry.binormals[index];
-                    var normal = geometry.normals[index];
-                    var txn = Vector3.Cross(tangent, normal);
-                    var dot = Vector3.Dot(txn, binorm);
-                    if (float.IsNaN(dot))
-                    {
-                        Log.Default.Warn("Weird normals in vtx {3} of geom {4}|{5}, N={0}, T={1}, B={2}, (T cross N) dot B is NaN", normal, tangent, binorm, index, geometry.SectionId, geometry.HashName);
+                        Log.Default.Warn("Vertex {0} of geometry {1}|{2} has an unusable UV V direction ({3})", index, geometry.SectionId, geometry.HashName, directionV);
                         return new Vector4(tangent, 1);
                     }
-                    var sgn = float.IsNaN(dot) ? 1 : Math.Sign(dot);
-                    return new Vector4(tangent, sgn != 0 ? sgn : 1);
-                };
-                var a_binorm = MakeVertexAttributeAccessor("vtan", geometry.tangents, 16, GLTF.DimensionType.VEC4, makeTangent, ma => ma.AsVector4Array());
-                result.Add(("TANGENT", a_binorm));
+
+                    var sign = Math.Sign(handedness);
+                    return new Vector4(tangent, sign != 0 ? sign : 1);
+                }
+
+                var a_tangent = MakeVertexAttributeAccessor("vtan", geometry.uvDirectionU, 16, GLTF.DimensionType.VEC4, MakeTangent, ma => ma.AsVector4Array());
+                result.Add(("TANGENT", a_tangent));
             }
             if (geometry.vertex_colors.Count > 0)
             {
