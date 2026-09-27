@@ -49,7 +49,7 @@ namespace PD2ModelParser.UI {
             // lblScript
             // 
             lblScript.AutoSize = true;
-            lblScript.Location = new System.Drawing.Point(76, 69);
+            lblScript.Location = new System.Drawing.Point(77, 69);
             lblScript.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             lblScript.Name = "lblScript";
             lblScript.Size = new System.Drawing.Size(40, 15);
@@ -60,12 +60,12 @@ namespace PD2ModelParser.UI {
             // labelSelBaseModel
             // 
             labelSelBaseModel.AutoSize = true;
-            labelSelBaseModel.Location = new System.Drawing.Point(4, 9);
+            labelSelBaseModel.Location = new System.Drawing.Point(26, 9);
             labelSelBaseModel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             labelSelBaseModel.Name = "labelSelBaseModel";
-            labelSelBaseModel.Size = new System.Drawing.Size(105, 15);
+            labelSelBaseModel.Size = new System.Drawing.Size(91, 15);
             labelSelBaseModel.TabIndex = 1;
-            labelSelBaseModel.Text = "Select Base Model:";
+            labelSelBaseModel.Text = "Base (Optional):";
             labelSelBaseModel.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // createNewModel
@@ -94,7 +94,7 @@ namespace PD2ModelParser.UI {
             // labelObj
             // 
             labelObj.AutoSize = true;
-            labelObj.Location = new System.Drawing.Point(71, 103);
+            labelObj.Location = new System.Drawing.Point(72, 103);
             labelObj.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             labelObj.Name = "labelObj";
             labelObj.Size = new System.Drawing.Size(45, 15);
@@ -105,7 +105,7 @@ namespace PD2ModelParser.UI {
             // labelPatternUV
             // 
             labelPatternUV.AutoSize = true;
-            labelPatternUV.Location = new System.Drawing.Point(49, 136);
+            labelPatternUV.Location = new System.Drawing.Point(51, 135);
             labelPatternUV.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             labelPatternUV.Name = "labelPatternUV";
             labelPatternUV.Size = new System.Drawing.Size(66, 15);
@@ -116,7 +116,7 @@ namespace PD2ModelParser.UI {
             // labelAnimations
             // 
             labelAnimations.AutoSize = true;
-            labelAnimations.Location = new System.Drawing.Point(49, 170);
+            labelAnimations.Location = new System.Drawing.Point(45, 170);
             labelAnimations.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             labelAnimations.Name = "labelAnimations";
             labelAnimations.Size = new System.Drawing.Size(71, 15);
@@ -133,7 +133,7 @@ namespace PD2ModelParser.UI {
             convert.Name = "convert";
             convert.Size = new System.Drawing.Size(698, 27);
             convert.TabIndex = 9;
-            convert.Text = "Convert";
+            convert.Text = "Import";
             convert.UseVisualStyleBackColor = true;
             convert.Click += Convert_Click;
             // 
@@ -267,6 +267,7 @@ namespace PD2ModelParser.UI {
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            Controls.Add(labelAnimations);
             Controls.Add(importTransformsBox);
             Controls.Add(lblScript);
             Controls.Add(scriptFile);
@@ -276,7 +277,6 @@ namespace PD2ModelParser.UI {
             Controls.Add(createNewObjectsBox);
             Controls.Add(convert);
             Controls.Add(labelPatternUV);
-            Controls.Add(labelAnimations);
             Controls.Add(labelObj);
             Controls.Add(patternUVFile);
             Controls.Add(animationFiles);

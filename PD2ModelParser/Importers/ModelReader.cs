@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Windows.Forms;
 using PD2ModelParser.Sections;
 
 namespace PD2ModelParser.Importers
@@ -11,7 +12,7 @@ namespace PD2ModelParser.Importers
         {
             FullModelData data = new();
 
-            StaticStorage.hashindex.Load();
+            EnsureHashlistAvailable();
 
             Log.Default.Info("Opening Model: {0}", filepath);
 
@@ -20,15 +21,18 @@ namespace PD2ModelParser.Importers
             return data;
         }
 
+
+        private static void EnsureHashlistAvailable()
+        {
+            if (StaticStorage.hashindex.Load())
+                return;
+
+            Log.Default.Warn("No hashlist could be loaded. Hashed names will remain unresolved.");
+
+        }
+
         public delegate void SectionVisitor(BinaryReader file, SectionHeader section);
 
-        /// <summary>
-        /// Iterate over each part of the model file, and letting the caller handle them.
-        ///
-        /// This allows much faster reading of a file if you're only interested in one
-        /// specific part of it.
-        /// </summary>
-        /// <param name="filepath">The name of the file to open</param>
         public static void VisitModel(string filepath, SectionVisitor visitor)
         {
             using FileStream fs = new(filepath, FileMode.Open, FileAccess.Read);

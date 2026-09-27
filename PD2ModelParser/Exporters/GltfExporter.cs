@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Windows.Forms;
 using GLTF = SharpGLTF.Schema2;
 namespace PD2ModelParser.Exporters
 {
@@ -397,6 +398,9 @@ namespace PD2ModelParser.Exporters
         private GLTF.Mesh GetMeshForModel(Model model)
         {
             if (model.PassthroughGP == null) return null;
+
+            // We rebuild metadata to fix older malformed modded model files.
+            RenderAtomMetadataRepair.RepairModel(model);
             var mesh = root.CreateMesh(model.Name);
             var secPassthrough = model.PassthroughGP;
             var geometry = secPassthrough.DieselGeometry;
@@ -462,8 +466,18 @@ namespace PD2ModelParser.Exporters
             for (int atomIndex = 0; atomIndex < atomList.Count; atomIndex++)
             {
                 var ra = atomList[atomIndex];
-                int indexCount = (int)ra.TriangleCount * 3;
-                int baseIndex = (int)ra.BaseIndex;
+                int requestedIndexCount = checked((int)ra.TriangleCount * 3);
+                int baseIndex = checked((int)ra.BaseIndex);
+                int indexCount = requestedIndexCount;
+
+                if (baseIndex > rawIndices.Length || requestedIndexCount > rawIndices.Length - baseIndex)
+                {
+                    throw new Exception(
+                        $"RenderAtom range is outside topology after metadata repair: " +
+                        $"topology={topo.HashName}, BaseIndex={ra.BaseIndex}, " +
+                        $"TriangleCount={ra.TriangleCount}, topologyIndices={rawIndices.Length}.");
+                }
+
                 bool useLocalIndices = localIndexModes[atomIndex] ??
                                        modelIndexMode ??
                                        ra.BaseVertex != 0;
@@ -491,8 +505,12 @@ namespace PD2ModelParser.Exporters
         private static bool? DetectLocalIndices(ushort[] indices, RenderAtom atom, DieselGeometry geometry)
         {
             uint vertexCount = geometry.vert_count;
-            int start = (int)atom.BaseIndex;
-            int count = (int)atom.TriangleCount * 3;
+            int start = checked((int)atom.BaseIndex);
+            int count = checked((int)atom.TriangleCount * 3);
+
+            if (start > indices.Length || count > indices.Length - start)
+                return null;
+
             bool localValid = atom.GeometrySliceLength > 0;
             bool absoluteSliceValid = atom.GeometrySliceLength > 0;
             bool absoluteGeometryValid = true;
@@ -528,8 +546,11 @@ namespace PD2ModelParser.Exporters
         {
             if (geometry.normals.Count != geometry.verts.Count) return float.NegativeInfinity;
 
-            int start = (int)atom.BaseIndex;
-            int count = (int)atom.TriangleCount * 3;
+            int start = checked((int)atom.BaseIndex);
+            int count = checked((int)atom.TriangleCount * 3);
+            if (start > indices.Length || count > indices.Length - start)
+                return float.NegativeInfinity;
+
             float score = 0;
             int samples = 0;
 

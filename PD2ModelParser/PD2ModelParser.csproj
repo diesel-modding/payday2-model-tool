@@ -1,41 +1,56 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-	<TargetFramework>net10.0-windows</TargetFramework>
-	<LangVersion>preview</LangVersion>
-	<SupportedOSPlatformVersion>6.1</SupportedOSPlatformVersion>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <UseWindowsForms>true</UseWindowsForms>
-  </PropertyGroup>
-  <ItemGroup>
-    <Content Include="modeltool.ico" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="11.0.0-rc.1.26425.128" />
-    <PackageReference Include="Mono.Options" Version="6.12.0.148" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.5-beta1" />
-    <PackageReference Include="NUnit" Version="5.0.0-beta.1" />
-    <PackageReference Include="SharpGLTF.Core" Version="1.0.7" />
-    <PackageReference Include="System.Text.Encodings.Web" Version="11.0.0-rc.1.26425.128" />
-    <PackageReference Include="System.Text.Json" Version="11.0.0-rc.1.26425.128" />
-    <PackageReference Include="System.ValueTuple" Version="4.6.2" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Update="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
-  </ItemGroup>
-  <PropertyGroup>
-    <PreBuildEvent Condition="'$(OS)' == 'Windows_NT' And '$(APPVEYOR)' != 'True'">CD /D $(MSBuildProjectDirectory)\..\ &amp; bash.exe "gen-version.sh" "$(ConfigurationName)"</PreBuildEvent>
-    <PreBuildEvent Condition="'$(OS)' != 'Windows_NT' ">"$(SolutionDir)gen-version.sh" "$(ConfigurationName)"</PreBuildEvent>
-    <ApplicationIcon>modeltool.ico</ApplicationIcon>
-    <StartupObject />
-    <PlatformTarget>x64</PlatformTarget>
-    <AssemblyName>DieselModelTool</AssemblyName>
-    <AssemblyTitle>DieselModelTool</AssemblyTitle>
-    <Title>DieselModelTool</Title>
-  </PropertyGroup>
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net10.0-windows</TargetFramework>
+		<LangVersion>preview</LangVersion>
+		<SupportedOSPlatformVersion>6.1</SupportedOSPlatformVersion>
+
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<UseWindowsForms>true</UseWindowsForms>
+
+		<PlatformTarget>x64</PlatformTarget>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+
+		<PublishSingleFile>true</PublishSingleFile>
+		<SelfContained>false</SelfContained>
+		<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+
+		<ApplicationIcon>modeltool.ico</ApplicationIcon>
+		<AssemblyName>DieselModelTool</AssemblyName>
+		<AssemblyTitle>DieselModelTool</AssemblyTitle>
+		<Title>DieselModelTool</Title>
+
+		<StartupObject />
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Content Include="modeltool.ico" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="11.0.0-rc.1.26425.128" />
+		<PackageReference Include="Mono.Options" Version="6.12.0.148" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.5-beta1" />
+		<PackageReference Include="NUnit" Version="5.0.0-beta.1" />
+		<PackageReference Include="SharpGLTF.Core" Version="1.0.7" />
+		<PackageReference Include="System.Text.Encodings.Web" Version="11.0.0-rc.1.26425.128" />
+		<PackageReference Include="System.Text.Json" Version="11.0.0-rc.1.26425.128" />
+		<PackageReference Include="System.ValueTuple" Version="4.6.2" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Update="Properties\Settings.settings">
+			<Generator>SettingsSingleFileGenerator</Generator>
+			<LastGenOutput>Settings.Designer.cs</LastGenOutput>
+		</None>
+	</ItemGroup>
+
+	<PropertyGroup>
+		<PreBuildEvent Condition="'$(OS)' == 'Windows_NT' And '$(APPVEYOR)' != 'True'">CD /D $(MSBuildProjectDirectory)\..\ &amp; bash.exe "gen-version.sh" "$(ConfigurationName)"</PreBuildEvent>
+		<PreBuildEvent Condition="'$(OS)' != 'Windows_NT'">"$(SolutionDir)gen-version.sh" "$(ConfigurationName)"</PreBuildEvent>
+	</PropertyGroup>
+
 </Project>

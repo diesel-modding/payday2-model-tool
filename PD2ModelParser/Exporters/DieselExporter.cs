@@ -10,6 +10,9 @@ namespace PD2ModelParser.Exporters
     {
         public static void ExportFile(FullModelData data, string path)
         {
+            // We now always rewrite metadata because older modded files may have invalid data.
+            RenderAtomMetadataRepair.RepairAll(data);
+
             //you remove items from the parsed_sections
             //you edit items in the parsed_sections, they will get read and exported
 

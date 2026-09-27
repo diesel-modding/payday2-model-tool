@@ -38,15 +38,15 @@
             // 
             // exportBttn
             // 
-            exportBttn.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            exportBttn.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
             exportBttn.BackColor = System.Drawing.SystemColors.ControlLightLight;
             exportBttn.Enabled = false;
-            exportBttn.Location = new System.Drawing.Point(6, 350);
+            exportBttn.Location = new System.Drawing.Point(6, 71);
             exportBttn.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             exportBttn.Name = "exportBttn";
             exportBttn.Size = new System.Drawing.Size(698, 27);
             exportBttn.TabIndex = 17;
-            exportBttn.Text = "Convert";
+            exportBttn.Text = "Export";
             exportBttn.UseVisualStyleBackColor = false;
             exportBttn.Click += ExportBttn_Click;
             // 
@@ -56,7 +56,7 @@
             label1.Location = new System.Drawing.Point(4, 14);
             label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(59, 15);
+            label1.Size = new System.Drawing.Size(59, 9);
             label1.TabIndex = 14;
             label1.Text = "Input File:";
             // 
@@ -66,7 +66,7 @@
             label2.Location = new System.Drawing.Point(6, 45);
             label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label2.Name = "label2";
-            label2.Size = new System.Drawing.Size(48, 15);
+            label2.Size = new System.Drawing.Size(48, 9);
             label2.TabIndex = 18;
             label2.Text = "Format:";
             // 

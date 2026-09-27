@@ -80,17 +80,34 @@ namespace PD2ModelParser
 
         private static IEnumerable<string> GetHashfileNames()
         {
-            var exepath = System.Reflection.Assembly.GetEntryAssembly().Location;
-            var exedir = Path.GetDirectoryName(exepath);
-            var cwd = Directory.GetCurrentDirectory();
+            string exedir = AppContext.BaseDirectory;
+            string cwd = Directory.GetCurrentDirectory();
 
-            var hashregex = new Regex(@"hash(list|es)(-\d+)?(\.txt)?", RegexOptions.IgnoreCase);
-            var names = Directory.GetFiles(cwd).Where(i=>hashregex.IsMatch(i));
-            if(exedir != cwd)
+            var hashregex = new Regex(
+                @"hash(list|es)(-\d+)?(\.txt)?",
+                RegexOptions.IgnoreCase);
+
+            IEnumerable<string> names = [];
+
+            if (!string.IsNullOrWhiteSpace(cwd) && Directory.Exists(cwd))
             {
-                names = names.Concat(Directory.GetFiles(exedir).Where(i => hashregex.IsMatch(i)));
+                names = Directory.GetFiles(cwd)
+                    .Where(i => hashregex.IsMatch(Path.GetFileName(i)));
             }
-            return names;
+
+            if (!string.IsNullOrWhiteSpace(exedir) &&
+                Directory.Exists(exedir) &&
+                !string.Equals(
+                    Path.GetFullPath(exedir),
+                    Path.GetFullPath(cwd),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                names = names.Concat(
+                    Directory.GetFiles(exedir)
+                        .Where(i => hashregex.IsMatch(Path.GetFileName(i))));
+            }
+
+            return names.Distinct(StringComparer.OrdinalIgnoreCase);
         }
 
         public void Hint(string line)

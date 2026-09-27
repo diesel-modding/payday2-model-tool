@@ -38,7 +38,7 @@ namespace PD2ModelParser.Exporters
             _ = data.leftover_data;
 
             //Generate obj
-            ushort maxfaces = 0;
+            UInt32 maxfaces = 0;
             UInt32 uvcount = 0;
             UInt32 normalcount = 0;
 
@@ -64,19 +64,19 @@ namespace PD2ModelParser.Exporters
                         sw.WriteLine("o " + model_data.Name);
                         foreach (Vector3 vert in geometry_section.verts)
                         {
-                            sw.WriteLine("v " + vert.X.ToString("0.000000", CultureInfo.InvariantCulture) + " " + vert.Y.ToString("0.000000", CultureInfo.InvariantCulture) + " " + vert.Z.ToString("0.000000", CultureInfo.InvariantCulture));
+                            sw.WriteLine("v " + vert.X.ToString("R", CultureInfo.InvariantCulture) + " " + vert.Y.ToString("R", CultureInfo.InvariantCulture) + " " + vert.Z.ToString("R", CultureInfo.InvariantCulture));
                         }
                         sw.WriteLine("# " + geometry_section.verts.Count + " Vertices");
 
                         foreach (Vector2 uv in geometry_section.UVs[uvchannel])
                         {
-                            sw.WriteLine("vt " + uv.X.ToString("0.000000", CultureInfo.InvariantCulture) + " " + uv.Y.ToString("0.000000", CultureInfo.InvariantCulture));
+                            sw.WriteLine("vt " + uv.X.ToString("R", CultureInfo.InvariantCulture) + " " + uv.Y.ToString("R", CultureInfo.InvariantCulture));
                         }
 
                         sw.WriteLine("# " + geometry_section.UVs[uvchannel].Count + " UVs");
                         foreach (Vector3 norm in geometry_section.normals)
                         {
-                            sw.WriteLine("vn " + norm.X.ToString("0.000000", CultureInfo.InvariantCulture) + " " + norm.Y.ToString("0.000000", CultureInfo.InvariantCulture) + " " + norm.Z.ToString("0.000000", CultureInfo.InvariantCulture));
+                            sw.WriteLine("vn " + norm.X.ToString("R", CultureInfo.InvariantCulture) + " " + norm.Y.ToString("R", CultureInfo.InvariantCulture) + " " + norm.Z.ToString("R", CultureInfo.InvariantCulture));
                         }
                         sw.WriteLine("# " + geometry_section.normals.Count + " Normals");
                         sw.WriteLine();
@@ -87,7 +87,7 @@ namespace PD2ModelParser.Exporters
                             //x
                             sw.Write("f " + (maxfaces + face.a + 1));
                             sw.Write('/');
-                            if (geometry_section.Uv0.Count > 0)
+                            if (geometry_section.UVs[uvchannel].Count > 0)
                                 sw.Write((uvcount + face.a + 1));
                             sw.Write('/');
                             if (geometry_section.normals.Count > 0)
@@ -96,7 +96,7 @@ namespace PD2ModelParser.Exporters
                             //y
                             sw.Write(" " + (maxfaces + face.b + 1));
                             sw.Write('/');
-                            if (geometry_section.Uv0.Count > 0)
+                            if (geometry_section.UVs[uvchannel].Count > 0)
                                 sw.Write((uvcount + face.b + 1));
                             sw.Write('/');
                             if (geometry_section.normals.Count > 0)
@@ -105,7 +105,7 @@ namespace PD2ModelParser.Exporters
                             //z
                             sw.Write(" " + (maxfaces + face.c + 1));
                             sw.Write('/');
-                            if (geometry_section.Uv0.Count > 0)
+                            if (geometry_section.UVs[uvchannel].Count > 0)
                                 sw.Write((uvcount + face.c + 1));
                             sw.Write('/');
                             if (geometry_section.normals.Count > 0)
@@ -116,9 +116,9 @@ namespace PD2ModelParser.Exporters
                         sw.WriteLine("# " + topology_section.facelist.Count + " Faces");
                         sw.WriteLine();
 
-                        maxfaces += (ushort)geometry_section.verts.Count;
-                        uvcount += (ushort)geometry_section.Uv0.Count;
-                        normalcount += (ushort)geometry_section.normals.Count;
+                        maxfaces += (UInt32)geometry_section.verts.Count;
+                        uvcount += (UInt32)geometry_section.UVs[uvchannel].Count;
+                        normalcount += (UInt32)geometry_section.normals.Count;
                     }
                 }
                 sw.Close();

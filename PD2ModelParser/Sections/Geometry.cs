@@ -622,6 +622,8 @@ namespace PD2ModelParser.Sections
             return base.ToString() + " Count: " + vert_count + " Headers: " + Headers.Count + " Verts: " + verts.Count + " UV0: " + Uv0.Count + " UV1: " + Uv1.Count + " Normals: " + normals.Count + " Weight Groups: " + weight_groups.Count + " Weights: " + weights.Count + " UV Direction V: " + uvDirectionV.Count + " UV Direction U: " + uvDirectionU.Count;
         }
 
+        public const float UvDeterminantEpsilon = 1e-6f;
+
         public static void ComputeUvDirections(
             IReadOnlyList<Vector3> positions,
             IReadOnlyList<Vector2> uvs,
@@ -640,12 +642,12 @@ namespace PD2ModelParser.Sections
                 Vector2 uv2 = uvs[face.c] - uvs[face.a];
 
                 float determinant = uv1.X * uv2.Y - uv2.X * uv1.Y;
-                if (!float.IsFinite(determinant) || MathF.Abs(determinant) < 1e-12f)
+                if (!float.IsFinite(determinant) || MathF.Abs(determinant) < UvDeterminantEpsilon)
                     continue;
 
                 float inverse = 1.0f / determinant;
                 Vector3 faceU = (edge1 * uv2.Y - edge2 * uv1.Y) * inverse;
-                Vector3 faceV = (edge2 * uv1.X - edge1 * uv2.X) * inverse;
+                Vector3 faceV = (edge1 * uv2.X - edge2 * uv1.X) * inverse;
 
                 accumulatedU[face.a] += faceU;
                 accumulatedU[face.b] += faceU;
@@ -655,8 +657,8 @@ namespace PD2ModelParser.Sections
                 accumulatedV[face.c] += faceV;
             }
 
-            directionU = accumulatedU.Select(NormalizeDirection).ToList();
-            directionV = accumulatedV.Select(NormalizeDirection).ToList();
+            directionU = [.. accumulatedU.Select(NormalizeDirection)];
+            directionV = [.. accumulatedV.Select(NormalizeDirection)];
         }
 
         private static Vector3 NormalizeDirection(Vector3 value)

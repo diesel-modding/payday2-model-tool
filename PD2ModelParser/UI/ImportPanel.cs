@@ -13,19 +13,21 @@ namespace PD2ModelParser.UI
     {
         private class ImportPanelLayoutEngine : LayoutEngine
         {
-            private struct TableRow {
+            private struct TableRow
+            {
                 public Label label;
                 public Control field;
                 public int labelWidth;
                 public int minFieldWidth;
                 public int height;
 
-                public TableRow(Label label, Control field) {
+                public TableRow(Label label, Control field)
+                {
                     this.label = label;
                     this.field = field;
 
-                    var labelSize = label?.GetPreferredSize(new Size(1,1)) ?? new Size(0,0);
-                    var fieldSize = this.field.GetPreferredSize(new Size(1,1));
+                    var labelSize = label?.GetPreferredSize(new Size(1, 1)) ?? new Size(0, 0);
+                    var fieldSize = this.field.GetPreferredSize(new Size(1, 1));
 
                     this.height = Math.Max(labelSize.Height + (label?.Margin.Vertical ?? 0), fieldSize.Height + this.field.Margin.Vertical);
                     this.minFieldWidth = fieldSize.Width;
@@ -37,8 +39,8 @@ namespace PD2ModelParser.UI
             private int maxLabelWidth;
 
             private void InitialAnalysis(ImportPanel panel)
-            {   
-                if(this.rows != null) { return; }
+            {
+                if (this.rows != null) { return; }
 
                 this.rows = [
                     new(panel.labelSelBaseModel, panel.baseModelFileBrowser),
@@ -53,14 +55,14 @@ namespace PD2ModelParser.UI
                     new(null, panel.labelRootPointHint),
                     new(panel.labelSaveTo, panel.outputBox)
                 ];
-                
+
                 this.maxLabelWidth = this.rows.Select(i => i.labelWidth).Max();
 
                 var currY = 0;
                 for (var i = 0; i < rows.Length; i++)
                 {
                     var label = rows[i].label;
-                    var labelSize = label?.GetPreferredSize(new Size(1,1)) ?? new Size(0,0);
+                    var labelSize = label?.GetPreferredSize(new Size(1, 1)) ?? new Size(0, 0);
                     var rowHeight = this.rows[i].height;
                     if (label != null)
                     {
@@ -85,7 +87,7 @@ namespace PD2ModelParser.UI
                 for (var i = 0; i < rows.Length; i++)
                 {
                     var field = rows[i].field;
-                    var fieldSize = field.GetPreferredSize(new Size(1,1));
+                    var fieldSize = field.GetPreferredSize(new Size(1, 1));
 
                     var rowHeight = this.rows[i].height;
 
@@ -179,7 +181,7 @@ namespace PD2ModelParser.UI
                 script.Add(new Modelscript.CreateNewObjects() { Create = createNewObjects });
                 var importDirective = new Modelscript.Import() { File = objectFile.Selected };
 
-                if(rootPoints.SelectedIndex > 0)
+                if (rootPoints.SelectedIndex > 0)
                 {
                     RootPointItem item = root_point_items[rootPoints.SelectedIndex];
                     importDirective.DefaultRootPoint = item.Name;
@@ -195,8 +197,10 @@ namespace PD2ModelParser.UI
                 script.Add(new Modelscript.PatternUV() { File = patternUVFile.Selected });
             }
 
-            if (animationFiles.AllSelected.Count > 0) {
-                foreach (string filepath in animationFiles.AllSelected) {
+            if (animationFiles.AllSelected.Count > 0)
+            {
+                foreach (string filepath in animationFiles.AllSelected)
+                {
                     script.Add(new Modelscript.LoadAnimation() { File = filepath });
                 }
             }
@@ -208,7 +212,7 @@ namespace PD2ModelParser.UI
             {
                 Modelscript.Script.ExecuteItems(script, System.IO.Directory.GetCurrentDirectory(), null);
             }
-            catch(Exception exc)
+            catch (Exception exc)
             {
                 Log.Default.Warn("Exception generating Diesel file: {0}", exc);
                 MessageBox.Show("There was an error importing the data - see console");
@@ -226,7 +230,7 @@ namespace PD2ModelParser.UI
         private void UpdateRootPointBox()
         {
             string old_selected_name;
-            if(rootPoints.SelectedIndex > 0)
+            if (rootPoints.SelectedIndex > 0)
             {
                 old_selected_name = root_point_items[rootPoints.SelectedIndex].Name;
             }
@@ -267,7 +271,8 @@ namespace PD2ModelParser.UI
                 // If there is no script file, just skim the model and collect the object IDs like that.
                 // This isn't a major improvement, but it does increase performance.
                 StaticStorage.hashindex.Load();
-                ModelReader.VisitModel(baseModelFileBrowser.Selected, (reader, header) => {
+                ModelReader.VisitModel(baseModelFileBrowser.Selected, (reader, header) =>
+                {
                     if (header.type == Tags.object3D_tag)
                     {
                         // First field of Object3D
@@ -279,7 +284,7 @@ namespace PD2ModelParser.UI
 
                         Log.Default.Debug("Scanning for rootpoint: {0}", name);
 
-                        if(old_selected_name == name)
+                        if (old_selected_name == name)
                         {
                             new_index = root_point_items.Count - 1;
                         }

@@ -233,174 +233,291 @@ namespace PD2ModelParser.Importers
 
         private static void AddObject(Obj_data obj, Model model_data_section, DieselGeometry geometry_section, Topology topology_section)
         {
-            List<Face> called_faces = [];
-            List<int> duplicate_verts = [];
-            Dictionary<int, Face> dup_faces = [];
+            bool hasUvs = obj.Uv.Count > 0;
+            bool hasNormals = obj.Normals.Count > 0;
 
-            bool broken = false;
-            for (int x_f = 0; x_f < obj.Faces.Count; x_f++)
+            var vertexMap = new Dictionary<(ushort Position, ushort Uv, ushort Normal), ushort>();
+            var sourceUvVertices = new List<(ushort Position, ushort Uv)>();
+            List<Vector3> verts = [];
+            List<Vector2> uvs = [];
+            List<Vector3> normals = [];
+            List<Face> faces = [];
+
+            ushort GetVertex(Face corner)
             {
-                Face f = obj.Faces[x_f];
-                broken = false;
+                var key = (
+                    corner.a,
+                    hasUvs ? corner.b : ushort.MaxValue,
+                    hasNormals ? corner.c : ushort.MaxValue);
 
-                foreach (Face called_f in called_faces)
-                {
-                    if (called_f.a == f.a && called_f.b != f.b)
-                    {
-                        duplicate_verts.Add(x_f);
-                        broken = true;
-                        break;
-                    }
-                }
+                if (vertexMap.TryGetValue(key, out ushort index))
+                    return index;
 
-                if (!broken)
-                    called_faces.Add(f);
+                if (verts.Count >= ushort.MaxValue)
+                    throw new Exception("OBJ contains too many expanded vertices for Diesel.");
+
+                index = (ushort)verts.Count;
+                vertexMap.Add(key, index);
+                verts.Add(obj.Verts[corner.a]);
+                sourceUvVertices.Add((corner.a, hasUvs ? corner.b : ushort.MaxValue));
+
+                if (hasUvs)
+                    uvs.Add(obj.Uv[corner.b]);
+                if (hasNormals)
+                    normals.Add(obj.Normals[corner.c]);
+
+                return index;
             }
 
-            Dictionary<int, Face> done_faces = [];
+            if (obj.Faces.Count % 3 != 0)
+                throw new Exception("OBJ face corner count is not divisible by 3.");
 
-            foreach (int dupe in duplicate_verts)
+            for (int i = 0; i < obj.Faces.Count; i += 3)
             {
-                int replacedF = -1;
-                foreach (KeyValuePair<int, Face> pair in done_faces)
-                {
-                    Face f = pair.Value;
-                    if (f.a == obj.Faces[dupe].a && f.b == obj.Faces[dupe].b)
-                    {
-                        replacedF = pair.Key;
-                    }
-                }
-
-                Face new_face;
-                if (replacedF > -1)
-                {
-                    new_face = new Face(obj.Faces[replacedF].a, obj.Faces[replacedF].b, obj.Faces[dupe].c);
-
-                }
-                else
-                {
-                    new_face = new Face((ushort)obj.Verts.Count, obj.Faces[dupe].b, obj.Faces[dupe].c);
-                    obj.Verts.Add(obj.Verts[obj.Faces[dupe].a]);
-
-                    done_faces.Add(dupe, obj.Faces[dupe]);
-                }
-
-                obj.Faces[dupe] = new_face;
+                faces.Add(new Face(
+                    GetVertex(obj.Faces[i]),
+                    GetVertex(obj.Faces[i + 1]),
+                    GetVertex(obj.Faces[i + 2])));
             }
 
-            Vector3 new_Model_data_bounds_min = new();// Z (max), X (low), Y (low)
-            Vector3 new_Model_data_bounds_max = new();// Z (low), X (max), Y (max)
+            List<Vector3> uvDirectionU = [];
+            List<Vector3> uvDirectionV = [];
 
-            foreach (Vector3 vert in obj.Verts)
+            if (hasUvs && uvs.Count == verts.Count)
             {
-                //Z
-                // Note these were previously broken
-                if (vert.Z < new_Model_data_bounds_min.Z)
-                    new_Model_data_bounds_min.Z = vert.Z;
+                DieselGeometry.ComputeUvDirections(
+                    verts,
+                    uvs,
+                    faces,
+                    out uvDirectionU,
+                    out uvDirectionV);
 
-                if (vert.Z > new_Model_data_bounds_max.Z)
-                    new_Model_data_bounds_max.Z = vert.Z;
-
-                //X
-                if (vert.X < new_Model_data_bounds_min.X)
-                    new_Model_data_bounds_min.X = vert.X;
-                if (vert.X > new_Model_data_bounds_max.X)
-                    new_Model_data_bounds_max.X = vert.X;
-
-                //Y
-                if (vert.Y < new_Model_data_bounds_min.Y)
-                    new_Model_data_bounds_min.Y = vert.Y;
-
-                if (vert.Y > new_Model_data_bounds_max.Y)
-                    new_Model_data_bounds_max.Y = vert.Y;
-            }
-
-            //Arrange UV and Normals
-            List<int> added_uvs = [];
-            List<int> added_normals = [];
-
-            Vector2[] new_arranged_UV = new Vector2[obj.Verts.Count];
-            for (int x = 0; x < new_arranged_UV.Length; x++)
-                new_arranged_UV[x] = new Vector2(100f, 100f);
-            Vector2 sentinel = new(100f, 100f);
-            Vector3[] new_arranged_Normals = new Vector3[obj.Verts.Count];
-            for (int x = 0; x < new_arranged_Normals.Length; x++)
-                new_arranged_Normals[x] = new Vector3(0f, 0f, 0f);
-            List<Face> new_faces = [];
-
-            for (int fcount = 0; fcount < obj.Faces.Count; fcount += 3)
-            {
-                Face f1 = obj.Faces[fcount + 0];
-                Face f2 = obj.Faces[fcount + 1];
-                Face f3 = obj.Faces[fcount + 2];
-
-                //UV
-                if (obj.Uv.Count > 0)
+                if (hasNormals && normals.Count == verts.Count)
                 {
-                    if (new_arranged_UV[f1.a].Equals(sentinel))
-                        new_arranged_UV[f1.a] = obj.Uv[f1.b];
-                    if (new_arranged_UV[f2.a].Equals(sentinel))
-                        new_arranged_UV[f2.a] = obj.Uv[f2.b];
-                    if (new_arranged_UV[f3.a].Equals(sentinel))
-                        new_arranged_UV[f3.a] = obj.Uv[f3.b];
+                    StabilizeUvOrientationRegions(
+                        sourceUvVertices,
+                        uvs,
+                        normals,
+                        faces,
+                        uvDirectionU,
+                        uvDirectionV);
                 }
-
-                //normal
-                if (obj.Normals.Count > 0)
-                {
-                    new_arranged_Normals[f1.a] = obj.Normals[f1.c];
-                    new_arranged_Normals[f2.a] = obj.Normals[f2.c];
-                    new_arranged_Normals[f3.a] = obj.Normals[f3.c];
-                }
-
-                Face new_f = new(f1.a, f2.a, f3.a);
-
-                new_faces.Add(new_f);
             }
 
-            for (int x = 0; x < new_arranged_Normals.Length; x++)
-                new_arranged_Normals[x] = Vector3.Normalize(new_arranged_Normals[x]);
+            if (verts.Count == 0)
+                return;
 
-            DieselGeometry.ComputeUvDirections(
-                obj.Verts,
-                new_arranged_UV,
-                new_faces,
-                out var uvDirectionU,
-                out var uvDirectionV);
+            Vector3 boundsMin = verts.Aggregate(MathUtil.Min);
+            Vector3 boundsMax = verts.Aggregate(MathUtil.Max);
 
-            List<RenderAtom> new_Model_items2 = [];
-
-            foreach (RenderAtom modelitem in model_data_section.RenderAtoms)
+            List<RenderAtom> renderAtoms = [];
+            foreach (RenderAtom atom in model_data_section.RenderAtoms)
             {
-                RenderAtom new_model_item = new()
+                renderAtoms.Add(new RenderAtom
                 {
-                    BaseVertex = modelitem.BaseVertex,
-                    TriangleCount = (uint)new_faces.Count,
-                    BaseIndex = modelitem.BaseIndex,
-                    GeometrySliceLength = (uint)obj.Verts.Count,
-                    MaterialId = modelitem.MaterialId
-                };
-
-                new_Model_items2.Add(new_model_item);
+                    BaseVertex = atom.BaseVertex,
+                    TriangleCount = (uint)faces.Count,
+                    BaseIndex = atom.BaseIndex,
+                    GeometrySliceLength = (uint)verts.Count,
+                    MaterialId = atom.MaterialId
+                });
             }
-
-            model_data_section.RenderAtoms = new_Model_items2;
+            model_data_section.RenderAtoms = renderAtoms;
 
             if (model_data_section.Version != 6)
             {
-                model_data_section.BoundsMin = new_Model_data_bounds_min;
-                model_data_section.BoundsMax = new_Model_data_bounds_max;
-                model_data_section.BoundingRadius = obj.Verts.Select(i => i.Length()).Max();
+                model_data_section.BoundsMin = boundsMin;
+                model_data_section.BoundsMax = boundsMax;
+                model_data_section.BoundingRadius = verts.Max(v => v.Length());
             }
 
-            geometry_section.vert_count = (uint)obj.Verts.Count;
-            geometry_section.verts = obj.Verts;
-            geometry_section.normals = [.. new_arranged_Normals];
-            geometry_section.UVs[0] = [.. new_arranged_UV];
-            geometry_section.uvDirectionV = uvDirectionV;
+            geometry_section.vert_count = (uint)verts.Count;
+            geometry_section.verts = verts;
+            geometry_section.normals = normals;
+            geometry_section.UVs[0] = uvs;
             geometry_section.uvDirectionU = uvDirectionU;
+            geometry_section.uvDirectionV = uvDirectionV;
+            topology_section.facelist = faces;
+        }
 
-            topology_section.facelist = new_faces;
+        private static void StabilizeUvOrientationRegions(
+            IReadOnlyList<(ushort Position, ushort Uv)> sourceVertices,
+            IReadOnlyList<Vector2> uvs,
+            IReadOnlyList<Vector3> normals,
+            IReadOnlyList<Face> faces,
+            IList<Vector3> directionU,
+            IList<Vector3> directionV)
+        {
+            const float minUvArea = DieselGeometry.UvDeterminantEpsilon;
+            int triangleCount = faces.Count;
+            var sign = new sbyte[triangleCount];
+            var reliable = new bool[triangleCount];
+            var neighbours = new List<int>[triangleCount];
+            var edges = new Dictionary<((ushort, ushort), (ushort, ushort)), List<int>>();
+
+            static int Compare((ushort Position, ushort Uv) a, (ushort Position, ushort Uv) b) =>
+                a.Position != b.Position ? a.Position.CompareTo(b.Position) : a.Uv.CompareTo(b.Uv);
+
+            static ((ushort, ushort), (ushort, ushort)) Edge(
+                (ushort Position, ushort Uv) a,
+                (ushort Position, ushort Uv) b) =>
+                Compare(a, b) <= 0 ? (a, b) : (b, a);
+
+            for (int i = 0; i < triangleCount; i++)
+            {
+                neighbours[i] = [];
+                Face f = faces[i];
+                Vector2 a = uvs[f.a], b = uvs[f.b], c = uvs[f.c];
+                float det = (b.X - a.X) * (c.Y - a.Y) - (c.X - a.X) * (b.Y - a.Y);
+
+                if (float.IsFinite(det) && MathF.Abs(det) >= minUvArea)
+                {
+                    sign[i] = det < 0 ? (sbyte)-1 : (sbyte)1;
+                    reliable[i] = true;
+                }
+
+                foreach (var edge in new[]
+                {
+                    Edge(sourceVertices[f.a], sourceVertices[f.b]),
+                    Edge(sourceVertices[f.b], sourceVertices[f.c]),
+                    Edge(sourceVertices[f.c], sourceVertices[f.a])
+                })
+                {
+                    if (!edges.TryGetValue(edge, out var owners))
+                        edges[edge] = owners = [];
+
+                    foreach (int other in owners)
+                    {
+                        neighbours[i].Add(other);
+                        neighbours[other].Add(i);
+                    }
+                    owners.Add(i);
+                }
+            }
+
+            var ambiguousVisited = new bool[triangleCount];
+
+            for (int start = 0; start < triangleCount; start++)
+            {
+                if (sign[start] != 0 || ambiguousVisited[start])
+                    continue;
+
+                var component = new List<int>();
+                var queue = new Queue<int>();
+                sbyte boundarySign = 0;
+                bool conflictingBoundary = false;
+
+                queue.Enqueue(start);
+                ambiguousVisited[start] = true;
+
+                while (queue.Count > 0)
+                {
+                    int t = queue.Dequeue();
+                    component.Add(t);
+
+                    foreach (int n in neighbours[t])
+                    {
+                        if (sign[n] == 0)
+                        {
+                            if (!ambiguousVisited[n])
+                            {
+                                ambiguousVisited[n] = true;
+                                queue.Enqueue(n);
+                            }
+                            continue;
+                        }
+
+                        if (boundarySign == 0)
+                            boundarySign = sign[n];
+                        else if (boundarySign != sign[n])
+                            conflictingBoundary = true;
+                    }
+                }
+
+                if (boundarySign == 0 || conflictingBoundary)
+                    continue;
+
+                foreach (int t in component)
+                    sign[t] = boundarySign;
+            }
+            var expected = new sbyte[uvs.Count];
+            var hasReliableLocal = new bool[uvs.Count];
+            var vertexNeighbours = new HashSet<int>[uvs.Count];
+            for (int i = 0; i < vertexNeighbours.Length; i++)
+                vertexNeighbours[i] = [];
+
+            for (int t = 0; t < triangleCount; t++)
+            {
+                Face f = faces[t];
+                vertexNeighbours[f.a].Add(f.b); vertexNeighbours[f.a].Add(f.c);
+                vertexNeighbours[f.b].Add(f.a); vertexNeighbours[f.b].Add(f.c);
+                vertexNeighbours[f.c].Add(f.a); vertexNeighbours[f.c].Add(f.b);
+
+                foreach (int v in new[] { (int)f.a, (int)f.b, (int)f.c })
+                {
+                    if (reliable[t])
+                        hasReliableLocal[v] = true;
+
+                    if (sign[t] == 0)
+                        continue;
+
+                    if (expected[v] == 0)
+                        expected[v] = sign[t];
+                    else if (expected[v] != sign[t])
+                        expected[v] = 2;
+                }
+            }
+
+            bool changed;
+            do
+            {
+                changed = false;
+                for (int i = 0; i < uvs.Count; i++)
+                {
+                    if (hasReliableLocal[i] || expected[i] is not (1 or -1))
+                        continue;
+                    if (directionU[i].LengthSquared() > 1e-20f &&
+                        directionV[i].LengthSquared() > 1e-20f)
+                        continue;
+
+                    Vector3 sumU = Vector3.Zero, sumV = Vector3.Zero;
+                    int count = 0;
+                    foreach (int n in vertexNeighbours[i])
+                    {
+                        if (expected[n] != expected[i]) continue;
+                        if (directionU[n].LengthSquared() <= 1e-20f ||
+                            directionV[n].LengthSquared() <= 1e-20f) continue;
+                        sumU += directionU[n];
+                        sumV += directionV[n];
+                        count++;
+                    }
+
+                    if (count == 0) continue;
+                    directionU[i] = Vector3.Normalize(sumU);
+                    directionV[i] = Vector3.Normalize(sumV);
+                    changed = true;
+                }
+            } while (changed);
+
+            for (int i = 0; i < uvs.Count; i++)
+            {
+                if (hasReliableLocal[i] || expected[i] is not (1 or -1))
+                    continue;
+
+                Vector3 n = normals[i], u = directionU[i], v = directionV[i];
+                if (n.LengthSquared() <= 1e-20f ||
+                    u.LengthSquared() <= 1e-20f ||
+                    v.LengthSquared() <= 1e-20f)
+                    continue;
+
+                float handedness = Vector3.Dot(Vector3.Cross(u, n), v);
+                if (!float.IsFinite(handedness) || MathF.Abs(handedness) <= 1e-8f)
+                    continue;
+
+                sbyte actual = handedness < 0 ? (sbyte)-1 : (sbyte)1;
+                if (actual != expected[i])
+                    directionV[i] = -v;
+            }
         }
 
         public static bool ImportNewObjPatternUV(FullModelData fm, string filepath)
