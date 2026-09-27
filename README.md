@@ -7,13 +7,7 @@ This is a successor of IAmNotASpy and PoueT's model tool.
 
 # glTF export/import
 
-Both the importer and exporter treat the material name `Material: Default Material` specially: it becomes no
-material on export, and a lack of material on import is replaced with that. Otherwise, the exporter creates
-a dummy material for each material name in the Diesel model. The importer doesn't care about the precise
-definition of materials, only their names.
-
-Because GLTF dictates a 1m scale, and Payday 2 uses a 1cm scale, the exporter accounts for this (this does have
-the downside that if you're importing into Blender bones and empties are drawn much too big).
+GLTF dictates a 1m scale, and Payday 2 uses a 1cm scale, the exporter accounts for this.
 
 # Feature Matrix
 
