@@ -44,13 +44,12 @@ namespace PD2ModelParser.UI
 
                 this.rows = [
                     new(panel.labelSelBaseModel, panel.baseModelFileBrowser),
-                    new(null, panel.createNewModel),
                     new(panel.lblScript, panel.scriptFile),
                     new(panel.labelObj, panel.objectFile),
                     new(panel.labelPatternUV, panel.patternUVFile),
                     new(panel.labelAnimations, panel.animationFiles),
                     new(null, panel.createNewObjectsBox),
-                    new(null, panel.importTransformsBox),
+                    new(null, panel.axisConversionBox),
                     new(panel.labelRootPoint, panel.rootPoints),
                     new(null, panel.labelRootPointHint),
                     new(panel.labelSaveTo, panel.outputBox)
@@ -137,21 +136,8 @@ namespace PD2ModelParser.UI
             UpdateRootPointBox();
         }
 
-        private void CreateNewModel_CheckedChanged(object sender, EventArgs e)
-        {
-            baseModelFileBrowser.Enabled = !createNewModel.Checked;
-            createNewObjectsBox.Enabled = !createNewModel.Checked;
-            importTransformsBox.Enabled = !createNewModel.Checked;
-        }
-
         private void Convert_Click(object sender, EventArgs e)
         {
-
-            if (baseModelFileBrowser.Selected == null && !createNewModel.Checked)
-            {
-                MessageBox.Show("Either select a valid base model or select the create new model box");
-                return;
-            }
 
             if (outputBox.Selected == null)
             {
@@ -159,16 +145,17 @@ namespace PD2ModelParser.UI
                 return;
             }
 
-            bool createNewObjects = createNewModel.Checked || createNewObjectsBox.Checked;
+            bool createNewModel = string.IsNullOrWhiteSpace(baseModelFileBrowser.Selected);
+            bool createNewObjects = createNewModel || createNewObjectsBox.Checked;
 
             var script = new List<Modelscript.IScriptItem>();
-            if (!createNewModel.Checked)
+            if (createNewModel)
             {
-                script.Add(new Modelscript.LoadModel() { File = baseModelFileBrowser.Selected });
+                script.Add(new Modelscript.NewModel());
             }
             else
             {
-                script.Add(new Modelscript.NewModel());
+                script.Add(new Modelscript.LoadModel() { File = baseModelFileBrowser.Selected });
             }
 
             if (scriptFile.Selected != null)
@@ -187,7 +174,7 @@ namespace PD2ModelParser.UI
                     importDirective.DefaultRootPoint = item.Name;
                 }
 
-                importDirective.ImporterOptions.Add("import-transforms", importTransformsBox.Checked.ToString());
+                importDirective.ImporterOptions.Add("axis-conversion", axisConversionBox.Checked.ToString());
 
                 script.Add(importDirective);
             }
@@ -208,6 +195,8 @@ namespace PD2ModelParser.UI
 
             script.Add(new Modelscript.SaveModel() { File = outputBox.Selected });
 
+            bool previousReuseExistingObjects = GltfImporter.ReuseExistingObjects;
+            GltfImporter.ReuseExistingObjects = !createNewModel;
             try
             {
                 Modelscript.Script.ExecuteItems(script, System.IO.Directory.GetCurrentDirectory(), null);
@@ -217,6 +206,10 @@ namespace PD2ModelParser.UI
                 Log.Default.Warn("Exception generating Diesel file: {0}", exc);
                 MessageBox.Show("There was an error importing the data - see console");
                 return;
+            }
+            finally
+            {
+                GltfImporter.ReuseExistingObjects = previousReuseExistingObjects;
             }
 
             MessageBox.Show("Model generated successfully");
@@ -249,7 +242,7 @@ namespace PD2ModelParser.UI
             {
                 // If we're using a script, we unfortunately have to fully load the file to evaluate the script
 
-                string model_file = baseModelFileBrowser.Enabled ? baseModelFileBrowser.Selected : null;
+                string model_file = baseModelFileBrowser.Selected;
                 FullModelData data = model_file != null ? ModelReader.Open(model_file) : new FullModelData();
                 // TODO display the errors in a less intrusive way
                 bool success = Modelscript.Script.ExecuteFileWithMsgBox(ref data, scriptFile.Selected);
@@ -266,7 +259,7 @@ namespace PD2ModelParser.UI
                     }
                 }
             }
-            else if (baseModelFileBrowser.Enabled && baseModelFileBrowser.Selected != null)
+            else if (baseModelFileBrowser.Selected != null)
             {
                 // If there is no script file, just skim the model and collect the object IDs like that.
                 // This isn't a major improvement, but it does increase performance.
@@ -312,5 +305,6 @@ namespace PD2ModelParser.UI
         {
             UpdateRootPointBox();
         }
+
     }
 }

@@ -476,8 +476,13 @@ namespace PD2ModelParser.Importers
                 {
                     if (hasReliableLocal[i] || expected[i] is not (1 or -1))
                         continue;
-                    if (directionU[i].LengthSquared() > 1e-20f &&
-                        directionV[i].LengthSquared() > 1e-20f)
+
+                    float currentULengthSq = directionU[i].LengthSquared();
+                    float currentVLengthSq = directionV[i].LengthSquared();
+                    if (float.IsFinite(currentULengthSq) &&
+                        float.IsFinite(currentVLengthSq) &&
+                        currentULengthSq > 1e-20f &&
+                        currentVLengthSq > 1e-20f)
                         continue;
 
                     Vector3 sumU = Vector3.Zero, sumV = Vector3.Zero;
@@ -485,16 +490,30 @@ namespace PD2ModelParser.Importers
                     foreach (int n in vertexNeighbours[i])
                     {
                         if (expected[n] != expected[i]) continue;
-                        if (directionU[n].LengthSquared() <= 1e-20f ||
-                            directionV[n].LengthSquared() <= 1e-20f) continue;
+
+                        float neighbourULengthSq = directionU[n].LengthSquared();
+                        float neighbourVLengthSq = directionV[n].LengthSquared();
+                        if (!float.IsFinite(neighbourULengthSq) ||
+                            !float.IsFinite(neighbourVLengthSq) ||
+                            neighbourULengthSq <= 1e-20f ||
+                            neighbourVLengthSq <= 1e-20f) continue;
+
                         sumU += directionU[n];
                         sumV += directionV[n];
                         count++;
                     }
 
                     if (count == 0) continue;
-                    directionU[i] = Vector3.Normalize(sumU);
-                    directionV[i] = Vector3.Normalize(sumV);
+
+                    float sumULengthSq = sumU.LengthSquared();
+                    float sumVLengthSq = sumV.LengthSquared();
+                    if (!float.IsFinite(sumULengthSq) ||
+                        !float.IsFinite(sumVLengthSq) ||
+                        sumULengthSq <= 1e-20f ||
+                        sumVLengthSq <= 1e-20f) continue;
+
+                    directionU[i] = sumU / MathF.Sqrt(sumULengthSq);
+                    directionV[i] = sumV / MathF.Sqrt(sumVLengthSq);
                     changed = true;
                 }
             } while (changed);

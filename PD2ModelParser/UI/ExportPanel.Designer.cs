@@ -1,4 +1,4 @@
-﻿namespace PD2ModelParser.UI
+namespace PD2ModelParser.UI
 {
     partial class ExportPanel
     {
@@ -34,6 +34,7 @@
             label2 = new System.Windows.Forms.Label();
             formatBox = new System.Windows.Forms.ComboBox();
             inputFileBox = new FileBrowserControl();
+            axisConversionBox = new System.Windows.Forms.CheckBox();
             SuspendLayout();
             // 
             // exportBttn
@@ -93,10 +94,24 @@
             inputFileBox.TabIndex = 20;
             inputFileBox.FileSelected += InputFileBox_FileSelected;
             // 
+            // axisConversionBox
+            // 
+            axisConversionBox.AutoSize = true;
+            axisConversionBox.Checked = true;
+            axisConversionBox.CheckState = System.Windows.Forms.CheckState.Checked;
+            axisConversionBox.Location = new System.Drawing.Point(9, 96);
+            axisConversionBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            axisConversionBox.Name = "axisConversionBox";
+            axisConversionBox.Size = new System.Drawing.Size(78, 19);
+            axisConversionBox.TabIndex = 21;
+            axisConversionBox.Text = "Axis Conversion";
+            axisConversionBox.UseVisualStyleBackColor = true;
+            // 
             // ExportPanel
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            Controls.Add(axisConversionBox);
             Controls.Add(inputFileBox);
             Controls.Add(label2);
             Controls.Add(formatBox);
@@ -116,5 +131,6 @@
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.ComboBox formatBox;
         private FileBrowserControl inputFileBox;
+        private System.Windows.Forms.CheckBox axisConversionBox;
     }
 }

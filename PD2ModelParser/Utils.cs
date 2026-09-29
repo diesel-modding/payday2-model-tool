@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 
@@ -34,16 +34,6 @@ namespace PD2ModelParser
 
     internal static class MathUtil
     {
-        public static double[] Serialize(System.Numerics.Matrix4x4 matrix)
-        {
-            return
-            [
-                matrix.M11, matrix.M21, matrix.M31, matrix.M41,
-                matrix.M12, matrix.M22, matrix.M32, matrix.M42,
-                matrix.M13, matrix.M23, matrix.M33, matrix.M43,
-                matrix.M14, matrix.M24, matrix.M34, matrix.M44,
-            ];
-        }
 
         public static Vector4 ToVector4(this Sections.GeometryColor input) => new(input.red/255.0f, input.green/255.0f, input.blue/255.0f, input.alpha/255.0f);
 
@@ -65,7 +55,7 @@ namespace PD2ModelParser
         /// <returns></returns>
         public static byte ClampFloatToByte(double input)
         {
-            _ = input > 1.0f ? 1.0f : input;
+            input = Math.Clamp(input, 0.0, 1.0);
             var scaled = input * 255;
             var rounded = Math.Round(scaled);
             return (byte)rounded;
@@ -86,11 +76,13 @@ namespace PD2ModelParser
         // From https://github.com/KhronosGroup/glTF-Validator/blob/master/lib/src/errors.dart
         // which says, "these values are slightly greater than the maximum error from signed 8-bit quantization"
         private const float UnitLengthThresholdVec3 = 0.00674f;
-        private const float UnitLengthThresholdVec4 = 0.00769f;
 
         public static Boolean IsUnitLength(this System.Numerics.Vector3 vec) =>
             Math.Abs(vec.Length() - 1) <= UnitLengthThresholdVec3;
+
+
     }
+
 
     public static class MatrixExtensions
     {
@@ -120,42 +112,6 @@ namespace PD2ModelParser
 
         public static ref float Index(ref this Matrix4x4 @this, int c, int r) => ref @this.Index(r * 4 + c);
 
-        /**
-         * Get a single column from this matrix, expressed as a vector.
-         *
-         * Note: the order of the column placement is 0-1-2-3 into X-Y-Z-W (so
-         * 'W' is the last not first value).
-         */
-        public static Vector4 GetColumn(this Matrix4x4 self, int column)
-        {
-            self.Index(15) = 1;
-            if (column < 0 || column >= 4)
-            {
-                throw new ArgumentOutOfRangeException(
-                    "Column must be between 0-3 inclusive (real value " + column + ")");
-            }
-            return new Vector4(self.Index(column, 0), self.Index(column, 1), self.Index(column, 2), self.Index(column, 3));
-        }
-
-        /**
-         * Return a copy of this matrix with the specified column set
-         * to a value. See GetColumn for more information.
-         */
-        public static Matrix4x4 WithColumn(this Matrix4x4 @this, int column, Vector4 value)
-        {
-            if (column < 0 || column >= 4)
-            {
-                throw new ArgumentOutOfRangeException(
-                    "Column must be between 0-3 inclusive (real value " + column + ")");
-            }
-
-            @this.Index(column, 0) = value.X;
-            @this.Index(column, 1) = value.Y;
-            @this.Index(column, 2) = value.Z;
-            @this.Index(column, 3) = value.W;
-
-            return @this;
-        }
 
         /**
          * Multiply two vectors the same way Diesel does. This is a bit confusing, see the decompiled
@@ -247,17 +203,6 @@ namespace PD2ModelParser
 
     internal static class MiscUtil
     {
-        public static R WithValue<T,R>(this T? self, Func<T,R> cb) where T : struct
-        {
-            if(self.HasValue)
-            {
-                return cb(self.Value);
-            }
-            else
-            {
-                return default;
-            }
-        }
 
         public static void WithValue<T>(this T? self, Action<T> cb) where T: struct
         {
@@ -277,18 +222,7 @@ namespace PD2ModelParser
             }
         }
 
-        // This exists in later framework versions
-        public static void Deconstruct<T1, T2>(this KeyValuePair<T1, T2> tuple, out T1 key, out T2 value)
-        {
-            key = tuple.Key;
-            value = tuple.Value;
-        }
 
-        public static void CopyTo<T>(this List<T> src, List<T> dst)
-        {
-            dst.Capacity = src.Count;
-            dst.AddRange(src);
-        }
     }
 
     

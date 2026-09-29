@@ -13,9 +13,16 @@ namespace PD2ModelParser
         public abstract bool CanExport { get; }
         public abstract bool CanImport { get; }
         public abstract string Export(FullModelData data, string path);
+        public virtual string Export(FullModelData data, string path, IOptionReceiver options) => Export(data, path);
         public abstract void Import(FullModelData data, string path, bool createModels, Func<string, Sections.Object3D> parentFinder, IOptionReceiver options);
         public virtual IOptionReceiver CreateOptionReceiver() => new GenericOptionReceiver();
         public override string ToString() => Extension.ToUpper();
+
+        protected static bool GetAxisConversion(IOptionReceiver options)
+        {
+            string value = options?.GetOption("axis-conversion");
+            return value == null || !bool.TryParse(value, out bool enabled) || enabled;
+        }
 
         public static bool TryParseName(string name, out FileTypeInfo result)
         {
@@ -70,6 +77,8 @@ namespace PD2ModelParser
                 => GltfImporter.Import(data, path, createModels, parentFinder, options);
             public override string Export(FullModelData data, string path)
                 => Exporters.GltfExporter.ExportFile(data, path, false);
+            public override string Export(FullModelData data, string path, IOptionReceiver options)
+                => Exporters.GltfExporter.ExportFile(data, path, false, GetAxisConversion(options));
         }
         public static readonly FileTypeInfo Gltf = new GltfType();
 
@@ -79,6 +88,8 @@ namespace PD2ModelParser
             public override string Name => "glTF Binary";
             public override string Export(FullModelData data, string path)
                 => Exporters.GltfExporter.ExportFile(data, path, true);
+            public override string Export(FullModelData data, string path, IOptionReceiver options)
+                => Exporters.GltfExporter.ExportFile(data, path, true, GetAxisConversion(options));
         }
         public static readonly FileTypeInfo Glb = new GlbType();
 

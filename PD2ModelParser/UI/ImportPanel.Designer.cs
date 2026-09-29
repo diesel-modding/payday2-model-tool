@@ -27,7 +27,6 @@ namespace PD2ModelParser.UI {
             components = new System.ComponentModel.Container();
             lblScript = new System.Windows.Forms.Label();
             labelSelBaseModel = new System.Windows.Forms.Label();
-            createNewModel = new System.Windows.Forms.CheckBox();
             labelSaveTo = new System.Windows.Forms.Label();
             labelObj = new System.Windows.Forms.Label();
             labelPatternUV = new System.Windows.Forms.Label();
@@ -43,7 +42,7 @@ namespace PD2ModelParser.UI {
             objectFile = new FileBrowserControl();
             outputBox = new FileBrowserControl();
             baseModelFileBrowser = new FileBrowserControl();
-            importTransformsBox = new System.Windows.Forms.CheckBox();
+            axisConversionBox = new System.Windows.Forms.CheckBox();
             SuspendLayout();
             // 
             // lblScript
@@ -67,18 +66,6 @@ namespace PD2ModelParser.UI {
             labelSelBaseModel.TabIndex = 1;
             labelSelBaseModel.Text = "Base (Optional):";
             labelSelBaseModel.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            // 
-            // createNewModel
-            // 
-            createNewModel.AutoSize = true;
-            createNewModel.Location = new System.Drawing.Point(126, 37);
-            createNewModel.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            createNewModel.Name = "createNewModel";
-            createNewModel.Size = new System.Drawing.Size(145, 19);
-            createNewModel.TabIndex = 2;
-            createNewModel.Text = "Or create a new model";
-            createNewModel.UseVisualStyleBackColor = true;
-            createNewModel.CheckedChanged += CreateNewModel_CheckedChanged;
             // 
             // labelSaveTo
             // 
@@ -250,25 +237,25 @@ namespace PD2ModelParser.UI {
             baseModelFileBrowser.TabIndex = 0;
             baseModelFileBrowser.FileSelected += BaseModelFileBrowser_FileSelected;
             // 
-            // importTransformsBox
+            // axisConversionBox
             // 
-            importTransformsBox.AutoSize = true;
-            importTransformsBox.Checked = true;
-            importTransformsBox.CheckState = System.Windows.Forms.CheckState.Checked;
-            importTransformsBox.Location = new System.Drawing.Point(126, 221);
-            importTransformsBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            importTransformsBox.Name = "importTransformsBox";
-            importTransformsBox.Size = new System.Drawing.Size(122, 19);
-            importTransformsBox.TabIndex = 16;
-            importTransformsBox.Text = "Import transforms";
-            importTransformsBox.UseVisualStyleBackColor = true;
+            axisConversionBox.AutoSize = true;
+            axisConversionBox.Checked = true;
+            axisConversionBox.CheckState = System.Windows.Forms.CheckState.Checked;
+            axisConversionBox.Location = new System.Drawing.Point(126, 221);
+            axisConversionBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            axisConversionBox.Name = "axisConversionBox";
+            axisConversionBox.Size = new System.Drawing.Size(78, 19);
+            axisConversionBox.TabIndex = 16;
+            axisConversionBox.Text = "Axis Conversion";
+            axisConversionBox.UseVisualStyleBackColor = true;
             // 
             // ImportPanel
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             Controls.Add(labelAnimations);
-            Controls.Add(importTransformsBox);
+            Controls.Add(axisConversionBox);
             Controls.Add(lblScript);
             Controls.Add(scriptFile);
             Controls.Add(labelRootPointHint);
@@ -283,7 +270,6 @@ namespace PD2ModelParser.UI {
             Controls.Add(objectFile);
             Controls.Add(outputBox);
             Controls.Add(labelSaveTo);
-            Controls.Add(createNewModel);
             Controls.Add(labelSelBaseModel);
             Controls.Add(baseModelFileBrowser);
             Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
@@ -298,7 +284,6 @@ namespace PD2ModelParser.UI {
 
         private FileBrowserControl baseModelFileBrowser;
 		private System.Windows.Forms.Label labelSelBaseModel;
-		private System.Windows.Forms.CheckBox createNewModel;
 		private System.Windows.Forms.Label labelSaveTo;
 		private FileBrowserControl outputBox;
 		private FileBrowserControl objectFile;
@@ -314,6 +299,6 @@ namespace PD2ModelParser.UI {
 		private System.Windows.Forms.Label labelRootPointHint;
 		private FileBrowserControl scriptFile;
 		private System.Windows.Forms.Label lblScript;
-		private System.Windows.Forms.CheckBox importTransformsBox;
-	}
+        private System.Windows.Forms.CheckBox axisConversionBox;
+    }
 }

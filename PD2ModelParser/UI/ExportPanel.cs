@@ -1,12 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using System.Windows.Forms.Layout;
 using PD2ModelParser.Importers;
-using PD2ModelParser.Modelscript;
 
 namespace PD2ModelParser.UI
 {
@@ -47,23 +45,19 @@ namespace PD2ModelParser.UI
 
         private void ExportBttn_Click(object sender, EventArgs e)
         {
-            var script = new List<IScriptItem>
-            {
-                new LoadModel() { File = inputFileBox.Selected }
-            };
             model = ModelReader.Open(inputFileBox.Selected);
-
-            var exportCmd = new Export();
 
             if (formatBox.SelectedItem is not FileTypeInfo type)
             {
-                MessageBox.Show("Unknown format '{format}'");
+                MessageBox.Show("Unknown export format");
                 return;
             }
+
             var outName = System.IO.Path.ChangeExtension(inputFileBox.Selected, type.Extension);
-            exportCmd.File = outName;
-            script.Add(exportCmd);
-            Script.ExecuteItems(script, System.IO.Directory.GetCurrentDirectory());
+            var options = type.CreateOptionReceiver();
+            options.AddOption("axis-conversion", axisConversionBox.Checked.ToString());
+
+            type.Export(model, outName, options);
 
             MessageBox.Show($"Successfully exported model {inputFileBox.Selected.Split('\\').Last()} (placed in the input model folder)");
         }
@@ -112,6 +106,14 @@ namespace PD2ModelParser.UI
                     field.SetBounds(fieldX, fieldOffsY, fieldWidth, fieldSize.Height);
                     currY += rowHeight;
                 }
+
+                var axisSize = panel.axisConversionBox.GetPreferredSize(new Size(1, 1));
+                panel.axisConversionBox.SetBounds(
+                    maxLabelWidth + panel.axisConversionBox.Margin.Left,
+                    currY + panel.axisConversionBox.Margin.Top,
+                    Math.Min(axisSize.Width, panel.Width - maxLabelWidth - panel.axisConversionBox.Margin.Horizontal),
+                    axisSize.Height);
+                currY = panel.axisConversionBox.Bounds.Bottom + panel.axisConversionBox.Margin.Bottom;
 
                 var buttonSize = panel.exportBttn.GetPreferredSize(new Size(1, 1));
                 panel.exportBttn.SetBounds(panel.exportBttn.Margin.Left, currY + panel.exportBttn.Margin.Top, panel.Width - panel.exportBttn.Margin.Horizontal, buttonSize.Height);

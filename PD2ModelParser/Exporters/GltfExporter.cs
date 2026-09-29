@@ -10,9 +10,9 @@ namespace PD2ModelParser.Exporters
 {
     internal class GltfExporter
     {
-        public static string ExportFile(FullModelData data, string path, bool binary)
+        public static string ExportFile(FullModelData data, string path, bool binary, bool axisConversion = true)
         {
-            var exporter = new GltfExporter();
+            var exporter = new GltfExporter { axisConversion = axisConversion };
             var gltfmodel = exporter.Convert(data);
             if (binary)
             {
@@ -34,6 +34,7 @@ namespace PD2ModelParser.Exporters
         private Dictionary<ISection, GLTF.Node> nodesBySection;
         private List<(Model, GLTF.Node)> toSkin;
         private readonly float scaleFactor = 0.01f;
+        private bool axisConversion = true;
         private static List<Object3D> GetSkeletonObjects(SkinBones skinBones)
         {
             var bones = new List<Object3D>();
@@ -65,10 +66,13 @@ namespace PD2ModelParser.Exporters
             {
                 CreateNodeFromObject3D(i, scene);
             }
-            var axisCorrection = Matrix4x4.CreateRotationX(-MathF.PI / 2);
-            foreach (var node in scene.VisualChildren.ToList())
+            if (axisConversion)
             {
-                node.LocalMatrix = axisCorrection * node.LocalMatrix;
+                var axisCorrection = Matrix4x4.CreateRotationX(-MathF.PI / 2);
+                foreach (var node in scene.VisualChildren.ToList())
+                {
+                    node.LocalMatrix = axisCorrection * node.LocalMatrix;
+                }
             }
             foreach (var (thing, node) in toSkin)
             {
