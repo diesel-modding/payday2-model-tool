@@ -15,6 +15,7 @@ namespace PD2ModelParser.Sections
 
         public CustomHashlist(BinaryReader br, SectionHeader sh)
         {
+            SectionId = sh.id;
             _ = br.ReadUInt16();
 
             // The number of hash strings

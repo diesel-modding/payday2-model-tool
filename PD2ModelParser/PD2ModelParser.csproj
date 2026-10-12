@@ -17,7 +17,7 @@
 		<PublishSingleFile>true</PublishSingleFile>
 		<SelfContained>false</SelfContained>
 		<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-
+		<Version>3.3.0</Version>
 		<ApplicationIcon>modeltool.ico</ApplicationIcon>
 		<AssemblyName>DieselModelTool</AssemblyName>
 		<AssemblyTitle>DieselModelTool</AssemblyTitle>

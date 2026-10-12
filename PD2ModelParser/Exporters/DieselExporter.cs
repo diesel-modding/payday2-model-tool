@@ -10,22 +10,14 @@ namespace PD2ModelParser.Exporters
     {
         public static void ExportFile(FullModelData data, string path)
         {
-            // We now always rewrite metadata because older modded files may have invalid data.
-            RenderAtomMetadataRepair.RepairAll(data);
+            ModelRepair.RepairAll(data);
 
-            //you remove items from the parsed_sections
-            //you edit items in the parsed_sections, they will get read and exported
-
-            //Sort the sections
             List<Animation> animation_sections = [];
             List<Author> author_sections = [];
             List<ISection> material_sections = [];
             List<Object3D> object3D_sections = [];
             List<Model> model_sections = [];
             List<ISection> other_sections = [];
-
-            // Discard the old hashlist
-            // Note that we use ToArray, which allows us to mutate the list without breaking anything
             foreach (SectionHeader header in data.sections.ToArray())
                 if (header.type == Tags.custom_hashlist_tag)
                     data.RemoveSection(header.id);
@@ -97,7 +89,6 @@ namespace PD2ModelParser.Exporters
                         .OrderedDistinct()
                         .ToList();
 
-            //after each section, you go back and enter it's new size
             using FileStream fs = new(path, FileMode.Create, FileAccess.Write);
             using BinaryWriter bw = new(fs);
 

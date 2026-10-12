@@ -8,7 +8,7 @@ namespace PD2ModelParser.Importers
 {
     internal static class ModelReader
     {
-        public static FullModelData Open(string filepath)
+        public static FullModelData Open(string filepath, bool applyRepairs = true)
         {
             FullModelData data = new();
 
@@ -16,7 +16,7 @@ namespace PD2ModelParser.Importers
 
             Log.Default.Info("Opening Model: {0}", filepath);
 
-            Read(data, filepath);
+            Read(data, filepath, applyRepairs);
 
             return data;
         }
@@ -51,7 +51,7 @@ namespace PD2ModelParser.Importers
         ///
         /// Note this leaves the file's position just after the end of the last section.
         /// </summary>
-        /// <param name="br">The input source</param>
+        /// <param>The input source</param>
         /// <returns>The list of section headers</returns>
         public static List<SectionHeader> ReadHeaders(BinaryReader br)
         {
@@ -107,7 +107,7 @@ namespace PD2ModelParser.Importers
             return sections;
         }
 
-        private static void Read(FullModelData data, string filepath)
+        private static void Read(FullModelData data, string filepath, bool applyRepairs)
         {
             List<SectionHeader> sections = data.sections;
             Dictionary<UInt32, ISection> parsed_sections = data.parsed_sections;
@@ -164,6 +164,8 @@ namespace PD2ModelParser.Importers
                     pl.PostLoad(i.Key, parsed_sections);
                 }
             }
+
+            if (applyRepairs) ModelRepair.RepairAll(data);
 
             if (ms.Position < ms.Length)
                 data.leftover_data = br.ReadBytes((int)(ms.Length - ms.Position));

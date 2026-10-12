@@ -33,6 +33,7 @@
             inputFileBox = new FileBrowserControl();
             label1 = new System.Windows.Forms.Label();
             exportBttn = new System.Windows.Forms.Button();
+            overwriteCheckBox = new System.Windows.Forms.CheckBox();
             richTextBox = new System.Windows.Forms.RichTextBox();
             SuspendLayout();
             // 
@@ -44,7 +45,7 @@
             inputFileBox.Margin = new System.Windows.Forms.Padding(5, 3, 5, 3);
             inputFileBox.Name = "inputFileBox";
             inputFileBox.Size = new System.Drawing.Size(623, 27);
-            inputFileBox.TabIndex = 25;
+            inputFileBox.TabIndex = 1;
             // 
             // label1
             // 
@@ -53,7 +54,7 @@
             label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(59, 15);
-            label1.TabIndex = 21;
+            label1.TabIndex = 0;
             label1.Text = "Input File:";
             // 
             // exportBttn
@@ -61,14 +62,25 @@
             exportBttn.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
             exportBttn.BackColor = System.Drawing.SystemColors.ControlLightLight;
             exportBttn.Enabled = false;
-            exportBttn.Location = new System.Drawing.Point(6, 41);
+            exportBttn.Location = new System.Drawing.Point(6, 73);
             exportBttn.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             exportBttn.Name = "exportBttn";
             exportBttn.Size = new System.Drawing.Size(698, 27);
-            exportBttn.TabIndex = 22;
-            exportBttn.Text = "Convert";
+            exportBttn.TabIndex = 3;
+            exportBttn.Text = "Resave";
             exportBttn.UseVisualStyleBackColor = false;
             exportBttn.Click += ExportBttn_Click;
+            // 
+            // overwriteCheckBox
+            // 
+            overwriteCheckBox.AutoSize = true;
+            overwriteCheckBox.Location = new System.Drawing.Point(9, 46);
+            overwriteCheckBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            overwriteCheckBox.Name = "overwriteCheckBox";
+            overwriteCheckBox.Size = new System.Drawing.Size(98, 19);
+            overwriteCheckBox.TabIndex = 2;
+            overwriteCheckBox.Text = "Overwrite File";
+            overwriteCheckBox.UseVisualStyleBackColor = true;
             // 
             // richTextBox
             // 
@@ -79,7 +91,7 @@
             richTextBox.Name = "richTextBox";
             richTextBox.ReadOnly = true;
             richTextBox.Size = new System.Drawing.Size(698, 139);
-            richTextBox.TabIndex = 26;
+            richTextBox.TabIndex = 4;
             richTextBox.Text = resources.GetString("richTextBox.Text");
             // 
             // ResavePanel
@@ -87,6 +99,7 @@
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             Controls.Add(richTextBox);
+            Controls.Add(overwriteCheckBox);
             Controls.Add(inputFileBox);
             Controls.Add(label1);
             Controls.Add(exportBttn);
@@ -102,6 +115,7 @@
         private FileBrowserControl inputFileBox;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Button exportBttn;
+        private System.Windows.Forms.CheckBox overwriteCheckBox;
         private System.Windows.Forms.RichTextBox richTextBox;
     }
 }

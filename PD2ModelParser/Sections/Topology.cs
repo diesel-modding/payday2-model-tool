@@ -52,6 +52,7 @@ namespace PD2ModelParser.Sections
 
         public PrimitiveType Primitive_type { get; set; }
         public List<Face> facelist = [];
+        public uint? DeclaredIndexCount { get; private set; }
         public UInt32 count2;
         public byte[] items2;
         public HashName HashName { get; set; }
@@ -66,6 +67,7 @@ namespace PD2ModelParser.Sections
             };
             dst.facelist.Capacity = this.facelist.Count;
             dst.facelist.AddRange(this.facelist.Select(f => new Face(f.a, f.b, f.c )));
+            dst.DeclaredIndexCount = this.DeclaredIndexCount;
             dst.count2 = this.count2;
             dst.items2 = (byte[])(this.items2.Clone());
             dst.remaining_data = this.remaining_data == null ? null : (byte[])this.remaining_data.Clone();
@@ -91,6 +93,7 @@ namespace PD2ModelParser.Sections
             SectionId = section.id;
             this.Primitive_type = (PrimitiveType)instream.ReadUInt32();
             uint count1 = instream.ReadUInt32();
+            DeclaredIndexCount = count1;
             for (int x = 0; x < count1 / 3; x++)
             {
                 var a = instream.ReadUInt16();

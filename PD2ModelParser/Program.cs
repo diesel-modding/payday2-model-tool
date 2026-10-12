@@ -3,6 +3,7 @@
 using PD2ModelParser.Misc;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
 using Mono.Options;
@@ -40,6 +41,7 @@ namespace PD2ModelParser
 
             bool show_help = false;
             bool gui = false;
+            bool resaveOverwrite = false;
             int verbosity = (int) LoggerLevel.Debug;
 
             var script = new List<IScriptItem>();
@@ -114,6 +116,18 @@ namespace PD2ModelParser
                     v => script.Add(new SaveModel() { File = v })
                 },
                 {
+                    "resave=", "Read and resave a .model file as .new.model (or overwrite with -o or --overwrite)",
+                    v => script.Add(new Resave() { File = v })
+                },
+                {
+                    "validate|check=", "Inspect a .model without changing the file.",
+                    v => script.Add(new ValidateModel() { File = v })
+                },
+                {
+                    "o|overwrite", "Overwrite the input for all --resave actions instead of creating .new.model files",
+                    v => resaveOverwrite = v != null
+                },
+                {
                     "import=", "Imports from a 3D model file",
                     v => script.Add(new Import() { File = v })
                 },
@@ -179,6 +193,11 @@ namespace PD2ModelParser
                 ShowError($"Unknown argument \"{extra[0]}\"");
                 return false;
             }
+
+            // The resave option applies to every --resave action, irrespective of
+            // where the flag appears among the command-line arguments.
+            foreach (var resave in script.OfType<Resave>())
+                resave.Overwrite = resaveOverwrite;
 
             if (script.Count != 0 && gui)
             {

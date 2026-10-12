@@ -661,6 +661,528 @@ namespace PD2ModelParser.Sections
             directionV = [.. accumulatedV.Select(NormalizeDirection)];
         }
 
+        public static void ComputeUvDirections(
+            IReadOnlyList<Vector3> positions,
+            IReadOnlyList<Vector2> uvs,
+            IReadOnlyList<Face> faces,
+            IReadOnlyList<Vector3> normals,
+            IReadOnlyList<float?> tangentHandedness,
+            out List<Vector3> directionU,
+            out List<Vector3> directionV)
+        {
+            ComputeUvDirections(positions, uvs, faces, out directionU, out directionV);
+
+            if (normals == null || normals.Count != positions.Count)
+                return;
+
+            if (tangentHandedness != null && tangentHandedness.Any(h => h.HasValue))
+            {
+                FillMissingUvDirections(
+                    faces, normals, tangentHandedness, directionU, directionV);
+
+                for (int i = 0; i < positions.Count; i++)
+                {
+                    if (!tangentHandedness[i].HasValue)
+                        continue;
+
+                    Vector3 n = normals[i];
+                    Vector3 u = directionU[i];
+                    Vector3 v = directionV[i];
+                    float h = Vector3.Dot(Vector3.Cross(u, n), v);
+
+                    if (float.IsFinite(h) && MathF.Abs(h) > 1e-8f &&
+                        (h < 0 ? -1.0f : 1.0f) != tangentHandedness[i].Value)
+                    {
+                        directionV[i] = -v;
+                    }
+                }
+            }
+            else
+            {
+                StabilizeUvOrientationRegions(
+                    uvs, normals, faces, directionU, directionV);
+            }
+        }
+
+        public static void ComputeObjUvDirections(
+            IReadOnlyList<Vector3> positions,
+            IReadOnlyList<Vector2> uvs,
+            IReadOnlyList<Face> faces,
+            IReadOnlyList<Vector3> normals,
+            IReadOnlyList<(ushort Position, ushort Uv)> sourceVertices,
+            out List<Vector3> directionU,
+            out List<Vector3> directionV)
+        {
+            ComputeUvDirections(positions, uvs, faces, out directionU, out directionV);
+
+            if (normals == null || normals.Count != positions.Count ||
+                sourceVertices == null || sourceVertices.Count != positions.Count)
+                return;
+
+            StabilizeUvOrientationRegions(
+                sourceVertices, uvs, normals, faces, directionU, directionV);
+        }
+
+        private static void StabilizeUvOrientationRegions(
+            IReadOnlyList<(ushort Position, ushort Uv)> sourceVertices,
+            IReadOnlyList<Vector2> uvs,
+            IReadOnlyList<Vector3> normals,
+            IReadOnlyList<Face> faces,
+            IList<Vector3> directionU,
+            IList<Vector3> directionV)
+        {
+            const float minUvArea = UvDeterminantEpsilon;
+            int triangleCount = faces.Count;
+            var sign = new sbyte[triangleCount];
+            var reliable = new bool[triangleCount];
+            var neighbours = new List<int>[triangleCount];
+            var edges = new Dictionary<((ushort, ushort), (ushort, ushort)), List<int>>();
+
+            static int Compare((ushort Position, ushort Uv) a, (ushort Position, ushort Uv) b) =>
+                a.Position != b.Position ? a.Position.CompareTo(b.Position) : a.Uv.CompareTo(b.Uv);
+
+            static ((ushort, ushort), (ushort, ushort)) Edge(
+                (ushort Position, ushort Uv) a,
+                (ushort Position, ushort Uv) b) =>
+                Compare(a, b) <= 0 ? (a, b) : (b, a);
+
+            for (int i = 0; i < triangleCount; i++)
+            {
+                neighbours[i] = [];
+                Face f = faces[i];
+                Vector2 a = uvs[f.a], b = uvs[f.b], c = uvs[f.c];
+                float det = (b.X - a.X) * (c.Y - a.Y) - (c.X - a.X) * (b.Y - a.Y);
+
+                if (float.IsFinite(det) && MathF.Abs(det) >= minUvArea)
+                {
+                    sign[i] = det < 0 ? (sbyte)-1 : (sbyte)1;
+                    reliable[i] = true;
+                }
+
+                foreach (var edge in new[]
+                {
+                    Edge(sourceVertices[f.a], sourceVertices[f.b]),
+                    Edge(sourceVertices[f.b], sourceVertices[f.c]),
+                    Edge(sourceVertices[f.c], sourceVertices[f.a])
+                })
+                {
+                    if (!edges.TryGetValue(edge, out var owners))
+                        edges[edge] = owners = [];
+
+                    foreach (int other in owners)
+                    {
+                        neighbours[i].Add(other);
+                        neighbours[other].Add(i);
+                    }
+                    owners.Add(i);
+                }
+            }
+
+            var ambiguousVisited = new bool[triangleCount];
+
+            for (int start = 0; start < triangleCount; start++)
+            {
+                if (sign[start] != 0 || ambiguousVisited[start])
+                    continue;
+
+                var component = new List<int>();
+                var queue = new Queue<int>();
+                sbyte boundarySign = 0;
+                bool conflictingBoundary = false;
+
+                queue.Enqueue(start);
+                ambiguousVisited[start] = true;
+
+                while (queue.Count > 0)
+                {
+                    int t = queue.Dequeue();
+                    component.Add(t);
+
+                    foreach (int n in neighbours[t])
+                    {
+                        if (sign[n] == 0)
+                        {
+                            if (!ambiguousVisited[n])
+                            {
+                                ambiguousVisited[n] = true;
+                                queue.Enqueue(n);
+                            }
+                            continue;
+                        }
+
+                        if (boundarySign == 0)
+                            boundarySign = sign[n];
+                        else if (boundarySign != sign[n])
+                            conflictingBoundary = true;
+                    }
+                }
+
+                if (boundarySign == 0 || conflictingBoundary)
+                    continue;
+
+                foreach (int t in component)
+                    sign[t] = boundarySign;
+            }
+            var expected = new sbyte[uvs.Count];
+            var hasReliableLocal = new bool[uvs.Count];
+            var vertexNeighbours = new HashSet<int>[uvs.Count];
+            for (int i = 0; i < vertexNeighbours.Length; i++)
+                vertexNeighbours[i] = [];
+
+            for (int t = 0; t < triangleCount; t++)
+            {
+                Face f = faces[t];
+                vertexNeighbours[f.a].Add(f.b); vertexNeighbours[f.a].Add(f.c);
+                vertexNeighbours[f.b].Add(f.a); vertexNeighbours[f.b].Add(f.c);
+                vertexNeighbours[f.c].Add(f.a); vertexNeighbours[f.c].Add(f.b);
+
+                foreach (int v in new[] { (int)f.a, (int)f.b, (int)f.c })
+                {
+                    if (reliable[t])
+                        hasReliableLocal[v] = true;
+
+                    if (sign[t] == 0)
+                        continue;
+
+                    if (expected[v] == 0)
+                        expected[v] = sign[t];
+                    else if (expected[v] != sign[t])
+                        expected[v] = 2;
+                }
+            }
+
+            bool changed;
+            do
+            {
+                changed = false;
+                for (int i = 0; i < uvs.Count; i++)
+                {
+                    if (hasReliableLocal[i] || expected[i] is not (1 or -1))
+                        continue;
+
+                    float currentULengthSq = directionU[i].LengthSquared();
+                    float currentVLengthSq = directionV[i].LengthSquared();
+                    if (float.IsFinite(currentULengthSq) &&
+                        float.IsFinite(currentVLengthSq) &&
+                        currentULengthSq > 1e-20f &&
+                        currentVLengthSq > 1e-20f)
+                        continue;
+
+                    Vector3 sumU = Vector3.Zero, sumV = Vector3.Zero;
+                    int count = 0;
+                    foreach (int n in vertexNeighbours[i])
+                    {
+                        if (expected[n] != expected[i]) continue;
+
+                        float neighbourULengthSq = directionU[n].LengthSquared();
+                        float neighbourVLengthSq = directionV[n].LengthSquared();
+                        if (!float.IsFinite(neighbourULengthSq) ||
+                            !float.IsFinite(neighbourVLengthSq) ||
+                            neighbourULengthSq <= 1e-20f ||
+                            neighbourVLengthSq <= 1e-20f) continue;
+
+                        sumU += directionU[n];
+                        sumV += directionV[n];
+                        count++;
+                    }
+
+                    if (count == 0) continue;
+
+                    float sumULengthSq = sumU.LengthSquared();
+                    float sumVLengthSq = sumV.LengthSquared();
+                    if (!float.IsFinite(sumULengthSq) ||
+                        !float.IsFinite(sumVLengthSq) ||
+                        sumULengthSq <= 1e-20f ||
+                        sumVLengthSq <= 1e-20f) continue;
+
+                    directionU[i] = sumU / MathF.Sqrt(sumULengthSq);
+                    directionV[i] = sumV / MathF.Sqrt(sumVLengthSq);
+                    changed = true;
+                }
+            } while (changed);
+
+            for (int i = 0; i < uvs.Count; i++)
+            {
+                if (hasReliableLocal[i] || expected[i] is not (1 or -1))
+                    continue;
+
+                Vector3 n = normals[i], u = directionU[i], v = directionV[i];
+                if (n.LengthSquared() <= 1e-20f ||
+                    u.LengthSquared() <= 1e-20f ||
+                    v.LengthSquared() <= 1e-20f)
+                    continue;
+
+                float handedness = Vector3.Dot(Vector3.Cross(u, n), v);
+                if (!float.IsFinite(handedness) || MathF.Abs(handedness) <= 1e-8f)
+                    continue;
+
+                sbyte actual = handedness < 0 ? (sbyte)-1 : (sbyte)1;
+                if (actual != expected[i])
+                    directionV[i] = -v;
+            }
+        }
+
+        public bool RebuildUvDirections(IReadOnlyList<Face> faces,
+            out int fallbackVertices, out int repairedNormals)
+        {
+            fallbackVertices = 0;
+            repairedNormals = 0;
+            int count = verts.Count;
+            if (count == 0 || Uv0.Count != count || normals.Count != count ||
+                !Headers.Any(h => h.ItemType == GeometryChannelTypes.UV_DIRECTION_U0 || h.ItemType == GeometryChannelTypes.UV_DIRECTION_U1) ||
+                !Headers.Any(h => h.ItemType == GeometryChannelTypes.UV_DIRECTION_V0 || h.ItemType == GeometryChannelTypes.UV_DIRECTION_V1))
+                return false;
+
+            var validFaces = faces.Where(f => f.BoundsCheck(count)).ToList();
+            if (validFaces.Count == 0) return false;
+
+            var normalFromFaces = new Vector3[count];
+            foreach (var f in validFaces)
+            {
+                Vector3 faceNormal = Vector3.Cross(verts[f.b] - verts[f.a], verts[f.c] - verts[f.a]);
+                if (!ValidDirection(faceNormal)) continue;
+                normalFromFaces[f.a] += faceNormal;
+                normalFromFaces[f.b] += faceNormal;
+                normalFromFaces[f.c] += faceNormal;
+            }
+
+            Vector3 sharedNormal = normals.FirstOrDefault(ValidDirection);
+            if (!ValidDirection(sharedNormal)) sharedNormal = Vector3.UnitZ;
+            for (int i = 0; i < count; i++)
+            {
+                if (ValidDirection(normals[i])) continue;
+                Vector3 n = ValidDirection(normalFromFaces[i]) ? normalFromFaces[i] : sharedNormal;
+                normals[i] = Vector3.Normalize(n);
+                repairedNormals++;
+            }
+
+            ComputeUvDirections(verts, Uv0, validFaces, normals, null,
+                out var newU, out var newV);
+
+            for (int i = 0; i < count; i++)
+            {
+                if (ValidDirection(newU[i]) && ValidDirection(newV[i])) continue;
+                fallbackVertices++;
+                Vector3 n = Vector3.Normalize(normals[i]);
+
+                Vector3 u = newU[i];
+                if (!ValidDirection(u))
+                {
+                    u = uvDirectionU.Count == count ? ProjectOntoNormalPlane(uvDirectionU[i], n) : Vector3.Zero;
+                    if (!ValidDirection(u))
+                    {
+                        Vector3 axis = MathF.Abs(n.Z) < 0.9f ? Vector3.UnitZ : Vector3.UnitY;
+                        u = Vector3.Cross(axis, n);
+                    }
+                    u = Vector3.Normalize(u);
+                }
+
+                Vector3 v = newV[i];
+                if (!ValidDirection(v))
+                {
+                    float sign = -1.0f;
+                    if (uvDirectionU.Count == count && uvDirectionV.Count == count &&
+                        ValidDirection(uvDirectionU[i]) && ValidDirection(uvDirectionV[i]))
+                    {
+                        float storedSign = Vector3.Dot(
+                            Vector3.Cross(uvDirectionU[i], n), uvDirectionV[i]);
+                        if (float.IsFinite(storedSign) && MathF.Abs(storedSign) > 1e-6f)
+                            sign = storedSign;
+                    }
+                    Vector3 cross = Vector3.Cross(u, n);
+                    if (!ValidDirection(cross))
+                    {
+                        Vector3 axis = MathF.Abs(n.Z) < 0.9f ? Vector3.UnitZ : Vector3.UnitY;
+                        u = Vector3.Normalize(Vector3.Cross(axis, n));
+                        cross = Vector3.Cross(u, n);
+                    }
+                    v = Vector3.Normalize(cross) * (sign < 0 ? -1.0f : 1.0f);
+                }
+                newU[i] = u;
+                newV[i] = v;
+            }
+
+            uvDirectionU = newU;
+            uvDirectionV = newV;
+            return true;
+        }
+
+        private static void FillMissingUvDirections(
+            IReadOnlyList<Face> faces,
+            IReadOnlyList<Vector3> normals,
+            IReadOnlyList<float?> handedness,
+            IList<Vector3> directionU,
+            IList<Vector3> directionV)
+        {
+            var neighbours = new HashSet<int>[directionU.Count];
+            for (int i = 0; i < neighbours.Length; i++) neighbours[i] = [];
+            foreach (var f in faces)
+            {
+                neighbours[f.a].Add(f.b); neighbours[f.a].Add(f.c);
+                neighbours[f.b].Add(f.a); neighbours[f.b].Add(f.c);
+                neighbours[f.c].Add(f.a); neighbours[f.c].Add(f.b);
+            }
+
+            bool changed;
+            do
+            {
+                changed = false;
+                for (int i = 0; i < directionU.Count; i++)
+                {
+                    if (!handedness[i].HasValue) continue;
+
+                    float currentULengthSq = directionU[i].LengthSquared();
+                    float currentVLengthSq = directionV[i].LengthSquared();
+                    if (float.IsFinite(currentULengthSq) &&
+                        float.IsFinite(currentVLengthSq) &&
+                        currentULengthSq > 1e-20f &&
+                        currentVLengthSq > 1e-20f) continue;
+
+                    Vector3 sumU = Vector3.Zero, sumV = Vector3.Zero;
+                    int count = 0;
+                    foreach (int n in neighbours[i])
+                    {
+                        if (handedness[n] != handedness[i]) continue;
+
+                        float neighbourULengthSq = directionU[n].LengthSquared();
+                        float neighbourVLengthSq = directionV[n].LengthSquared();
+                        if (!float.IsFinite(neighbourULengthSq) ||
+                            !float.IsFinite(neighbourVLengthSq) ||
+                            neighbourULengthSq <= 1e-20f ||
+                            neighbourVLengthSq <= 1e-20f) continue;
+
+                        sumU += directionU[n];
+                        sumV += directionV[n];
+                        count++;
+                    }
+
+                    if (count == 0) continue;
+
+                    float sumULengthSq = sumU.LengthSquared();
+                    float sumVLengthSq = sumV.LengthSquared();
+                    if (!float.IsFinite(sumULengthSq) ||
+                        !float.IsFinite(sumVLengthSq) ||
+                        sumULengthSq <= 1e-20f ||
+                        sumVLengthSq <= 1e-20f) continue;
+
+                    directionU[i] = sumU / MathF.Sqrt(sumULengthSq);
+                    directionV[i] = sumV / MathF.Sqrt(sumVLengthSq);
+
+                    float h = Vector3.Dot(
+                        Vector3.Cross(directionU[i], normals[i]), directionV[i]);
+                    if (float.IsFinite(h) && MathF.Abs(h) > 1e-8f &&
+                        (h < 0 ? -1.0f : 1.0f) != handedness[i].Value)
+                    {
+                        directionV[i] = -directionV[i];
+                    }
+                    changed = true;
+                }
+            } while (changed);
+        }
+
+        private static void StabilizeUvOrientationRegions(
+            IReadOnlyList<Vector2> uvs,
+            IReadOnlyList<Vector3> normals,
+            IReadOnlyList<Face> faces,
+            IList<Vector3> directionU,
+            IList<Vector3> directionV)
+        {
+            const float minUvArea = UvDeterminantEpsilon;
+            int count = faces.Count;
+            var sign = new sbyte[count];
+            var neighbours = new List<int>[count];
+            var edges = new Dictionary<(ushort, ushort), List<int>>();
+
+            static (ushort, ushort) Edge(ushort a, ushort b) => a <= b ? (a, b) : (b, a);
+
+            for (int i = 0; i < count; i++)
+            {
+                neighbours[i] = [];
+                var f = faces[i];
+                Vector2 a = uvs[f.a], b = uvs[f.b], c = uvs[f.c];
+                float det = (b.X - a.X) * (c.Y - a.Y) - (c.X - a.X) * (b.Y - a.Y);
+                if (float.IsFinite(det) && MathF.Abs(det) >= minUvArea)
+                    sign[i] = det < 0 ? (sbyte)-1 : (sbyte)1;
+
+                foreach (var edge in new[] { Edge(f.a, f.b), Edge(f.b, f.c), Edge(f.c, f.a) })
+                {
+                    if (!edges.TryGetValue(edge, out var owners))
+                        edges[edge] = owners = [];
+                    foreach (int other in owners)
+                    {
+                        neighbours[i].Add(other);
+                        neighbours[other].Add(i);
+                    }
+                    owners.Add(i);
+                }
+            }
+
+            bool changed;
+            do
+            {
+                changed = false;
+                var pending = new sbyte[count];
+                for (int i = 0; i < count; i++)
+                {
+                    if (sign[i] != 0) continue;
+                    sbyte inherited = 0;
+                    bool conflict = false;
+                    foreach (int n in neighbours[i])
+                    {
+                        if (sign[n] == 0) continue;
+                        if (inherited == 0) inherited = sign[n];
+                        else if (inherited != sign[n]) { conflict = true; break; }
+                    }
+                    if (!conflict) pending[i] = inherited;
+                }
+                for (int i = 0; i < count; i++)
+                {
+                    if (sign[i] == 0 && pending[i] != 0)
+                    {
+                        sign[i] = pending[i];
+                        changed = true;
+                    }
+                }
+            }
+            while (changed);
+
+            var vertexSign = new sbyte[uvs.Count];
+            for (int i = 0; i < count; i++)
+            {
+                if (sign[i] == 0) continue;
+                var f = faces[i];
+                foreach (int v in new[] { (int)f.a, (int)f.b, (int)f.c })
+                {
+                    if (vertexSign[v] == 0) vertexSign[v] = sign[i];
+                    else if (vertexSign[v] != sign[i]) vertexSign[v] = 2;
+                }
+            }
+
+            for (int i = 0; i < vertexSign.Length; i++)
+            {
+                if (vertexSign[i] is not (1 or -1)) continue;
+                Vector3 n = normals[i], u = directionU[i], v = directionV[i];
+                float h = Vector3.Dot(Vector3.Cross(u, n), v);
+                if (float.IsFinite(h) && MathF.Abs(h) > 1e-8f &&
+                    (h < 0 ? -1 : 1) != vertexSign[i])
+                {
+                    directionV[i] = -v;
+                }
+            }
+        }
+
+        private static bool ValidDirection(Vector3 v)
+        {
+            float lengthSquared = v.LengthSquared();
+            return float.IsFinite(lengthSquared) && lengthSquared > 1e-20f;
+        }
+
+        private static Vector3 ProjectOntoNormalPlane(Vector3 v, Vector3 n)
+        {
+            if (!ValidDirection(v)) return Vector3.Zero;
+            return v - Vector3.Dot(v, n) * n;
+        }
+
         private static Vector3 NormalizeDirection(Vector3 value)
         {
             float lengthSquared = value.LengthSquared();

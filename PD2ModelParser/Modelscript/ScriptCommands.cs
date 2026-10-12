@@ -72,6 +72,171 @@ namespace PD2ModelParser.Modelscript
         }
     }
 
+    public class ValidateModel : ScriptItem
+    {
+        [Required] public string File { get; set; }
+
+        public override void Execute(ScriptState state)
+        {
+            string path = state.ResolvePath(File);
+            Console.WriteLine($"Validating {path}");
+            try
+            {
+                var (original, repaired, repairs) = S.ModelValidator.CheckFile(path);
+                original.Print("Original file");
+                Console.WriteLine($"\nModel-level metadata repairs available: {repairs}");
+                repaired.Print("After simulated metadata repair (not saved)");
+                if (original.Errors > 0 || repaired.Errors > 0)
+                    Environment.ExitCode = 2;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"ERROR: Cannot validate {path}: {ex.Message}");
+                Environment.ExitCode = 2;
+            }
+        }
+    }
+
+    public class Resave : ScriptItem
+    {
+        [Required] public string File { get; set; }
+        public bool Overwrite { get; set; }
+
+        public override void Execute(ScriptState state)
+        {
+            string sourcePath = state.ResolvePath(File);
+            string outputPath = ResaveFile(sourcePath, Overwrite);
+            ScriptState.Log.Status($"Resaved model {sourcePath} to {outputPath}");
+        }
+        public static string ResaveFile(string inputPath, bool overwrite = false,
+            Func<IReadOnlyList<string>, bool> confirmUnknownData = null)
+        {
+            if (string.IsNullOrWhiteSpace(inputPath))
+                throw new ArgumentException("A model file path is required.", nameof(inputPath));
+
+            string sourcePath = System.IO.Path.GetFullPath(inputPath);
+            if (!string.Equals(System.IO.Path.GetExtension(sourcePath), ".model", StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("The resave input must be a .model file.", nameof(inputPath));
+
+            string outputPath = overwrite ? sourcePath : System.IO.Path.ChangeExtension(sourcePath, ".new.model");
+            FullModelData model = ModelReader.Open(sourcePath);
+
+            List<string> warnings = [];
+            foreach (var pair in model.parsed_sections)
+            {
+                if (pair.Value is S.Unknown unknown)
+                    warnings.Add($"Section {pair.Key}: unknown type 0x{unknown.TypeCode:X8} ({unknown.data?.Length ?? 0} bytes)");
+            }
+
+            foreach (string warning in warnings)
+                Log.Default.Warn("Resave: {0}", warning);
+
+            if (warnings.Count > 0 && confirmUnknownData != null && !confirmUnknownData(warnings))
+                return null;
+
+            RebuildGeometricUvDirections(model);
+
+            string directory = System.IO.Path.GetDirectoryName(outputPath);
+            string temporaryPath = System.IO.Path.Combine(directory,
+                "." + System.IO.Path.GetFileName(outputPath) + "." + Guid.NewGuid().ToString("N") + ".tmp");
+            try
+            {
+                Exporters.DieselExporter.ExportFile(model, temporaryPath);
+                System.IO.File.Move(temporaryPath, outputPath, overwrite: true);
+                return outputPath;
+            }
+            finally
+            {
+                if (System.IO.File.Exists(temporaryPath))
+                    System.IO.File.Delete(temporaryPath);
+            }
+        }
+
+        private static void RebuildGeometricUvDirections(FullModelData data)
+        {
+            S.ModelRepair.RepairAll(data);
+
+            var visited = new HashSet<S.DieselGeometry>();
+            foreach (var model in data.SectionsOfType<S.Model>())
+            {
+                var gp = model.PassthroughGP;
+                var geometry = gp?.DieselGeometry;
+                var topology = gp?.Topology;
+                if (geometry == null || topology == null || visited.Contains(geometry))
+                    continue;
+
+                List<S.Face> faces = ResolveResaveFaces(model, geometry, topology);
+                if (faces.Count == 0)
+                {
+                    Log.Default.Warn("Resave: skipping geometric UV recalculation on geometry {0}: no usable triangle faces", geometry.SectionId);
+                    continue;
+                }
+
+                if (geometry.RebuildUvDirections(faces, out int fallbackVertices, out int repairedNormals))
+                {
+                    visited.Add(geometry);
+                    Log.Default.Info("Resave: recalculated geometric UV on geometry {0} ({1} vertices; {2} fallback tangents; {3} repaired normals)",
+                        geometry.SectionId, geometry.vert_count, fallbackVertices, repairedNormals);
+                }
+            }
+        }
+
+        private static List<S.Face> ResolveResaveFaces(S.Model model, S.DieselGeometry geometry, S.Topology topology)
+        {
+            var faces = new List<S.Face>();
+            int vertexCount = geometry.verts.Count;
+            var sourceFaces = topology.facelist;
+
+            if (topology.Primitive_type != S.Topology.PrimitiveType.TriangleList)
+                return faces;
+
+            foreach (var atom in model.RenderAtoms)
+            {
+                if (atom.BaseIndex % 3 != 0 || atom.BaseIndex / 3 > sourceFaces.Count)
+                    continue;
+                int start = checked((int)(atom.BaseIndex / 3));
+                int count = (int)Math.Min(atom.TriangleCount, (uint)(sourceFaces.Count - start));
+                if (count == 0) continue;
+
+                var slice = sourceFaces.GetRange(start, count);
+                bool local = atom.GeometrySliceLength > 0;
+                bool absolute = atom.GeometrySliceLength > 0;
+                foreach (var f in slice)
+                {
+                    foreach (int index in new[] { (int)f.a, (int)f.b, (int)f.c })
+                    {
+                        local &= index < atom.GeometrySliceLength && index + (long)atom.BaseVertex < vertexCount;
+                        absolute &= index >= atom.BaseVertex && (long)index - atom.BaseVertex < atom.GeometrySliceLength && index < vertexCount;
+                    }
+                }
+
+                if (!local && !absolute)
+                {
+                    Log.Default.Warn("Resave: cannot resolve vertex indices for geometry {0}, atom at index {1}; skipping atom", geometry.SectionId, atom.BaseIndex);
+                    continue;
+                }
+
+                if (local && absolute && atom.BaseVertex != 0)
+                {
+                    Log.Default.Warn("Resave: ambiguous local/absolute indices for geometry {0}, atom at index {1}; skipping atom", geometry.SectionId, atom.BaseIndex);
+                    continue;
+                }
+                int offset = local && !absolute ? checked((int)atom.BaseVertex) : 0;
+                if (slice.Any(f => (long)f.a + offset > ushort.MaxValue ||
+                                   (long)f.b + offset > ushort.MaxValue ||
+                                   (long)f.c + offset > ushort.MaxValue))
+                {
+                    Log.Default.Warn("Resave: geometry {0} uses vertex indices above 65535; skipping atom at index {1}", geometry.SectionId, atom.BaseIndex);
+                    continue;
+                }
+                foreach (var f in slice)
+                    faces.Add(new S.Face((ushort)(f.a + offset),
+                        (ushort)(f.b + offset), (ushort)(f.c + offset)));
+            }
+            return faces;
+        }
+    }
+
     public class Import : ScriptItem
     {
         public string File { get; set; }

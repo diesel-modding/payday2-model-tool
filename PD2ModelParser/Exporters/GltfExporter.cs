@@ -134,7 +134,7 @@ namespace PD2ModelParser.Exporters
                 if (mod.Version == 3)
                 {
                     node.Mesh = GetMeshForModel(mod);
-                    if (mod.SkinBones != null)
+                    if (mod.SkinBones != null && node.Mesh != null)
                     {
                         toSkin.Add((mod, node));
                     }
@@ -403,8 +403,11 @@ namespace PD2ModelParser.Exporters
         {
             if (model.PassthroughGP == null) return null;
 
-            // We rebuild metadata to fix older malformed modded model files.
-            RenderAtomMetadataRepair.RepairModel(model);
+            if (model.RenderAtoms == null || !model.RenderAtoms.Any(atom => atom.TriangleCount > 0))
+            {
+                Log.Default.Warn("Skipping mesh {0}: no nonempty RenderAtoms.", model.Name);
+                return null;
+            }
             var mesh = root.CreateMesh(model.Name);
             var secPassthrough = model.PassthroughGP;
             var geometry = secPassthrough.DieselGeometry;
@@ -470,6 +473,15 @@ namespace PD2ModelParser.Exporters
             for (int atomIndex = 0; atomIndex < atomList.Count; atomIndex++)
             {
                 var ra = atomList[atomIndex];
+                if (ra.TriangleCount == 0)
+                {
+                    if (ra.BaseIndex > rawIndices.Length)
+                    {
+                        Log.Default.Warn("Skipping empty RenderAtom {0} in topology {1}: BaseIndex={2}, topologyIndices={3}.",
+                            atomIndex, topo.HashName, ra.BaseIndex, rawIndices.Length);
+                    }
+                    continue;
+                }
                 int requestedIndexCount = checked((int)ra.TriangleCount * 3);
                 int baseIndex = checked((int)ra.BaseIndex);
                 int indexCount = requestedIndexCount;
@@ -477,7 +489,7 @@ namespace PD2ModelParser.Exporters
                 if (baseIndex > rawIndices.Length || requestedIndexCount > rawIndices.Length - baseIndex)
                 {
                     throw new Exception(
-                        $"RenderAtom range is outside topology after metadata repair: " +
+                        $"RenderAtom range is outside topology: " +
                         $"topology={topo.HashName}, BaseIndex={ra.BaseIndex}, " +
                         $"TriangleCount={ra.TriangleCount}, topologyIndices={rawIndices.Length}.");
                 }
@@ -508,6 +520,7 @@ namespace PD2ModelParser.Exporters
 
         private static bool? DetectLocalIndices(ushort[] indices, RenderAtom atom, DieselGeometry geometry)
         {
+            if (atom.TriangleCount == 0) return null;
             uint vertexCount = geometry.vert_count;
             int start = checked((int)atom.BaseIndex);
             int count = checked((int)atom.TriangleCount * 3);
@@ -604,7 +617,7 @@ namespace PD2ModelParser.Exporters
                     }
                     return normalized;
                 }
-                var a_norm = MakeVertexAttributeAccessor("vnorm", geometry.normals, 12, GLTF.DimensionType.VEC3, MakeNormal, ma => ma.AsVector3Array());
+                var a_norm = MakeVertexAttributeAccessorIndexed("vnorm", geometry.normals, 12, GLTF.DimensionType.VEC3, MakeNormal, ma => ma.AsVector3Array());
                 result.Add(("NORMAL", a_norm));
             }
             if (geometry.uvDirectionU.Count == geometry.vert_count &&
@@ -638,7 +651,7 @@ namespace PD2ModelParser.Exporters
                     return new Vector4(tangent, sign != 0 ? sign : 1);
                 }
 
-                var a_tangent = MakeVertexAttributeAccessor("vtan", geometry.uvDirectionU, 16, GLTF.DimensionType.VEC4, MakeTangent, ma => ma.AsVector4Array());
+                var a_tangent = MakeVertexAttributeAccessorIndexed("vtan", geometry.uvDirectionU, 16, GLTF.DimensionType.VEC4, MakeTangent, ma => ma.AsVector4Array());
                 result.Add(("TANGENT", a_tangent));
             }
             if (geometry.vertex_colors.Count > 0)
@@ -716,9 +729,9 @@ namespace PD2ModelParser.Exporters
         private Vector2 FixupUV(Vector2 input) => new(input.X, 1 - input.Y);
         private GLTF.Accessor MakeVertexAttributeAccessor<TSource, TResult>(string maiName, IList<TSource> source, int stride, GLTF.DimensionType dimtype, Func<TSource, TResult> conv, Func<MemoryAccessor, IList<TResult>> getcontainer, GLTF.EncodingType enc = GLTF.EncodingType.FLOAT, bool normalized = false)
         {
-            return MakeVertexAttributeAccessor(maiName, source, stride, dimtype, (s, i) => conv(s), getcontainer, enc, normalized);
+            return MakeVertexAttributeAccessorIndexed(maiName, source, stride, dimtype, (s, i) => conv(s), getcontainer, enc, normalized);
         }
-        private GLTF.Accessor MakeVertexAttributeAccessor<TSource, TResult>(string maiName, IList<TSource> source, int stride, GLTF.DimensionType dimtype, Func<TSource, int, TResult> conv, Func<MemoryAccessor, IList<TResult>> getcontainer, GLTF.EncodingType enc = GLTF.EncodingType.FLOAT, bool normalized = false)
+        private GLTF.Accessor MakeVertexAttributeAccessorIndexed<TSource, TResult>(string maiName, IList<TSource> source, int stride, GLTF.DimensionType dimtype, Func<TSource, int, TResult> conv, Func<MemoryAccessor, IList<TResult>> getcontainer, GLTF.EncodingType enc = GLTF.EncodingType.FLOAT, bool normalized = false)
         {
             var mai = new MemoryAccessInfo(maiName, 0, source.Count, stride, dimtype, enc, normalized);
             var ma = new MemoryAccessor(new ArraySegment<byte>(new byte[source.Count * stride]), mai);
