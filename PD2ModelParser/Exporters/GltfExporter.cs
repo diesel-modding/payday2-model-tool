@@ -176,7 +176,7 @@ namespace PD2ModelParser.Exporters
             var skinbones = model.SkinBones;
             var skeletonObjects = GetSkeletonObjects(skinbones);
             if (skeletonObjects.Count == 0) return;
-            var skin = root.CreateSkin(model.Name);
+            var skin = root.CreateSkin(null);
             var skeletonRootNode = nodesBySection[skinbones.ProbablyRootBone];
             skin.Skeleton = skeletonRootNode;
             node.LocalTransform = Matrix4x4.Identity;
@@ -244,14 +244,14 @@ namespace PD2ModelParser.Exporters
                 new(max.X, max.Y, max.Z),
                 new(min.X, max.Y, max.Z)
             };
-            var indices = new ushort[]{0,2,1,0,3,2,4,5,6,4,6,7,0,1,5,0,5,4,2,3,7,2,7,6,0,4,7,0,7,3,1,2,6,1,6,5};
+            var indices = new ushort[] { 0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 2, 3, 7, 2, 7, 6, 0, 4, 7, 0, 7, 3, 1, 2, 6, 1, 6, 5 };
             return CreateGeneratedMesh(model.Name, vertices, indices);
         }
         private GLTF.Mesh CreateSphereMesh(Model model)
         {
             Vector3 size = (model.BoundsMax - model.BoundsMin) * scaleFactor;
             float Radius = MathF.Min(MathF.Min(size.X, size.Y), size.Z) * 0.5f;
-            Vector3 center = (model.BoundsMin + model.BoundsMax) * 0.5f* scaleFactor;
+            Vector3 center = (model.BoundsMin + model.BoundsMax) * 0.5f * scaleFactor;
             const int segments = 24;
             const int rings = 12;
             var vertices = new List<Vector3>();
@@ -292,7 +292,7 @@ namespace PD2ModelParser.Exporters
         private GLTF.Mesh CreateCapsuleMesh(Model model)
         {
             Vector3 size = (model.BoundsMax - model.BoundsMin) * scaleFactor;
-            Vector3 center = (model.BoundsMin + model.BoundsMax) * 0.5f* scaleFactor;
+            Vector3 center = (model.BoundsMin + model.BoundsMax) * 0.5f * scaleFactor;
             int axis;
             if (size.X >= size.Y && size.X >= size.Z) axis = 0;
             else if (size.Y >= size.X && size.Y >= size.Z) axis = 1;
@@ -413,11 +413,11 @@ namespace PD2ModelParser.Exporters
             var geometry = secPassthrough.DieselGeometry;
             var topology = secPassthrough.Topology;
             var materialGroup = model.MaterialGroup;
-            var jointRemap = new Dictionary<int,int>();
+            var jointRemap = new Dictionary<int, int>();
             if (model.SkinBones != null)
             {
                 var skeletonObjects = GetSkeletonObjects(model.SkinBones);
-                var jointIndices = new Dictionary<Object3D,int>();
+                var jointIndices = new Dictionary<Object3D, int>();
                 for (int i = 0; i < skeletonObjects.Count; i++) jointIndices[skeletonObjects[i]] = i;
                 for (int i = 0; i < model.SkinBones.Objects.Count; i++)
                 {
@@ -720,7 +720,8 @@ namespace PD2ModelParser.Exporters
                         return 0;
                     }
                     return new Vector4(Remap(groups.Bones1), Remap(groups.Bones2), Remap(groups.Bones3), Remap(groups.Bones4));
-                };
+                }
+                ;
                 var a_joint = MakeVertexAttributeAccessor("vjoint", geometry.weight_groups, 8, GLTF.DimensionType.VEC4, ConvertWeightGroup, ma => ma.AsVector4Array(), GLTF.EncodingType.UNSIGNED_SHORT);
                 result.Add(("JOINTS_0", a_joint));
             }
